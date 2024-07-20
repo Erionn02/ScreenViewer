@@ -87,6 +87,6 @@ function(download_vnc_library)
             GIT_TAG master
     )
     FetchContent_MakeAvailable(libvncserver)
-    include_directories(${libvncserver_SOURCE_DIR}/include)
-    include_directories(${libvncserver_BINARY_DIR}/include)
+    include_directories(SYSTEM ${libvncserver_SOURCE_DIR}/include)
+    include_directories(SYSTEM ${libvncserver_BINARY_DIR}/include)
 endfunction()
