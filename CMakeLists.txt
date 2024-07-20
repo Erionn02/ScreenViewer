@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CONAN_SYSTEM_INCLUDES ON)
 include(${CMAKE_SOURCE_DIR}/cmake/CMakeHelpers.cmake)
 
+download_vnc_library()
 setup_conan()
 
 # Turn on with 'cmake -Dcoverage=ON ..'.

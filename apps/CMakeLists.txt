@@ -8,4 +8,12 @@ add_app(ScreenViewerClient
         ScreenViewerClient.cpp
         )
 
+add_app(vnc_client
+        vnc_client.cpp
+        )
+
+add_app(vnc_server
+        vnc_server.cpp
+        )
+
 target_compile_definitions(ScreenViewerServer PRIVATE TEST_CERTS_DIR="${CMAKE_SOURCE_DIR}/tests/test_certs")

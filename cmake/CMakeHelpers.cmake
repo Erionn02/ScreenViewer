@@ -20,7 +20,7 @@ endfunction()
 function(add_app APP_NAME)
     add_executable(${APP_NAME} ${ARGN})
     get_property(PROJECT_LIBS GLOBAL PROPERTY PROJECT_LIBS_PROPERTY)
-    target_link_libraries(${APP_NAME} PRIVATE "${PROJECT_LIBS}")
+    target_link_libraries(${APP_NAME} PRIVATE "${PROJECT_LIBS}" vncclient vncserver)
     set_link_options(${APP_NAME})
 endfunction()
 
@@ -65,7 +65,7 @@ macro(setup_conan)
     set(CONAN_SYSTEM_INCLUDES ON)
     conan_cmake_run(
             CONANFILE ${CMAKE_SOURCE_DIR}/conanfile.txt
-            PROFILE default
+            PROFILE screen-viewer-profile
             BASIC_SETUP
             BUILD missing
     )
@@ -77,4 +77,16 @@ function(download_conan_cmake)
         file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/master/conan.cmake"
                 "${CMAKE_BINARY_DIR}/conan/conan.cmake")
     endif ()
+endfunction()
+
+function(download_vnc_library)
+    include(FetchContent)
+    FetchContent_Declare(
+            libvncserver
+            GIT_REPOSITORY https://github.com/LibVNC/libvncserver.git
+            GIT_TAG master
+    )
+    FetchContent_MakeAvailable(libvncserver)
+    include_directories(${libvncserver_SOURCE_DIR}/include)
+    include_directories(${libvncserver_BINARY_DIR}/include)
 endfunction()
