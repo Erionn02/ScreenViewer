@@ -3,9 +3,7 @@
 #include <spdlog/spdlog.h>
 
 VNCClient::VNCClient(std::string server_ip) : client(createClient(std::move(server_ip))), window(createWindow()),
-                                              renderer(createRenderer()), texture(createTexture()) {
-
-}
+                                              renderer(createRenderer()), texture(createTexture()) {}
 
 VNCClient::~VNCClient() {
     SDL_Quit();
@@ -72,10 +70,10 @@ void VNCClient::handleIOEvents(std::chrono::milliseconds period) {
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
-                auto keySym = static_cast<rfbKeySym>(event.key.keysym.sym);
-                spdlog::info("Button pressed {}", keySym);
+                auto key_sym = static_cast<rfbKeySym>(event.key.keysym.sym);
+                spdlog::info("Button pressed {}", key_sym);
                 rfbBool down = (event.type == SDL_KEYDOWN) ? TRUE : FALSE;
-                SendKeyEvent(client.get(), keySym, down);
+                SendKeyEvent(client.get(), key_sym, down);
             }
         }
     }

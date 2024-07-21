@@ -28,6 +28,7 @@ private:
     std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> createRenderer();
     std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> createTexture();
 
+
     int window_width{800};
     int window_height{600};
     std::unique_ptr<rfbClient, decltype(&rfbClientCleanup)> client;
