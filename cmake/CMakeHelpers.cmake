@@ -20,7 +20,7 @@ endfunction()
 function(add_app APP_NAME)
     add_executable(${APP_NAME} ${ARGN})
     get_property(PROJECT_LIBS GLOBAL PROPERTY PROJECT_LIBS_PROPERTY)
-    target_link_libraries(${APP_NAME} PRIVATE "${PROJECT_LIBS}" vncclient vncserver)
+    target_link_libraries(${APP_NAME} PRIVATE vncclient vncserver)
     set_link_options(${APP_NAME})
 endfunction()
 

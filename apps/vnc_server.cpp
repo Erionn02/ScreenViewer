@@ -1,7 +1,5 @@
 #include <opencv2/opencv.hpp>
-
 #include <rfb/rfb.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -9,12 +7,10 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xfixes.h>
-
 #include <chrono>
 #include <thread>
 #include <iostream>
 #include <spdlog/spdlog.h>
-
 
 void drawCursor(cv::Mat& img, XFixesCursorImage* cursorImage, int cursorX, int cursorY) {
     int imgWidth = img.cols;
@@ -48,6 +44,7 @@ void drawCursor(cv::Mat& img, XFixesCursorImage* cursorImage, int cursorX, int c
         }
     }
 }
+
 void captureScreen(rfbScreenInfoPtr server) {
     static Display* display = XOpenDisplay(NULL);
     if (!display) {
@@ -101,27 +98,26 @@ void captureScreen(rfbScreenInfoPtr server) {
     XDestroyImage(image);
 }
 
-
 int main(int argc, char** argv) {
-    rfbScreenInfoPtr server = rfbGetScreen(&argc, argv, 1500, 800, 8, 3, 4);
+    // set to actual screen resolution to ensure best possible quality
+    rfbScreenInfoPtr server = rfbGetScreen(&argc, argv, 1920, 1080, 8, 3, 4);
     if (!server) {
         fprintf(stderr, "Failed to initialize VNC server\n");
         return 1;
     }
 
-    server->frameBuffer = (char*)malloc(1500*800 * 4);
+    server->frameBuffer = (char*)malloc(1920 * 1080 * 4);
     server->alwaysShared = TRUE;
 
     rfbInitServer(server);
 
     fprintf(stderr, "VNC server started\n");
 
-
     while (rfbIsActive(server)) {
-        auto now = std::chrono::high_resolution_clock::now();
+//        auto now = std::chrono::high_resolution_clock::now();
         captureScreen(server);
-        auto then = std::chrono::high_resolution_clock::now();
-        spdlog::info( "Resize time: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(then-now).count());
+//        auto then = std::chrono::high_resolution_clock::now();
+//        spdlog::info("Resize time: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(then - now).count());
         rfbMarkRectAsModified(server, 0, 0, server->width, server->height);
         rfbProcessEvents(server, 10000);
     }

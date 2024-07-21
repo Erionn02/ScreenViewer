@@ -1,11 +1,12 @@
 #include <rfb/rfbclient.h>
+#include <rfb/rfbproto.h>
 #include <SDL2/SDL.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <chrono>
 #include <thread>
 #include <spdlog/spdlog.h>
+#include <opencv2/opencv.hpp>
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -14,8 +15,8 @@ bool frameUpdated = false;
 
 int windowWidth = 800;
 int windowHeight = 600;
-                    // client, x, y, w, h
-void updateRectangle(rfbClient*, int , int , int , int ) {
+
+void updateRectangle(rfbClient*, int, int, int, int) {
     frameUpdated = true;
 }
 
@@ -36,24 +37,29 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    rfbClient *client = rfbGetClient(8, 3, 4);
+    rfbClient* client = rfbGetClient(8, 3, 4);
     if (!client) {
         return 1;
     }
 
     client->canHandleNewFBSize = FALSE;
     client->GotFrameBufferUpdate = updateRectangle;
+    client->appData.qualityLevel = 9;
+    client->appData.compressLevel = 8;
+    client->appData.enableJPEG = 1;
+
 
     if (!rfbInitClient(client, &argc, argv)) {
         fprintf(stderr, "Failed to connect to VNC server\n");
         return 1;
     }
-
+    spdlog::info("client->appData.qualityLevel: {}, client->appData.compressLevel: {}, client->appData.enableJPEG: {}",
+                 client->appData.qualityLevel, client->appData.compressLevel, client->appData.enableJPEG);
 
     window = SDL_CreateWindow("VNC Client",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               windowWidth, windowHeight,
-                              SDL_WINDOW_SHOWN  | SDL_WINDOW_RESIZABLE);
+                              SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!window) {
         fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
         rfbClientCleanup(client);
@@ -85,10 +91,8 @@ int main(int argc, char** argv) {
 
     fprintf(stderr, "Connected to VNC server\n");
 
-
     while (1) {
         SDL_RenderSetLogicalSize(renderer, windowWidth, windowHeight);
-        spdlog::info("Width: {}, height: {}", windowWidth, windowHeight);
         if (WaitForMessage(client, 100000) < 0) {
             fprintf(stderr, "WaitForMessage failed\n");
             break;
@@ -105,7 +109,6 @@ int main(int argc, char** argv) {
             SDL_RenderPresent(renderer);
             frameUpdated = false;
         }
-
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
