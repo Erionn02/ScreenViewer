@@ -40,6 +40,7 @@ private:
     Window root;
     std::unique_ptr<char[]> frame_buffer;
     std::unique_ptr<rfbScreenInfo, decltype(&rfbScreenCleanup)> server;
+    unsigned int extractButtonID(int buttonMask) const;
 };
 
 

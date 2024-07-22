@@ -120,35 +120,24 @@ void VNCServer::handlePointerEvent(int buttonMask, int x, int y, rfbClientPtr) {
     x += screens->x_org;
     y += screens->y_org;
 
-    XWarpPointer(display.get(), None, root, 0, 0, 0, 0, x, y);
-    XFlush(display.get());
-
-    int button{0};
-    if (buttonMask & rfbButton1Mask) button = Button1;
-    if (buttonMask & rfbButton2Mask) button = Button2;
-    if (buttonMask & rfbButton3Mask) button = Button3;
-    if (buttonMask & rfbButton4Mask) button = Button4;
-    if (buttonMask & rfbButton5Mask) button = Button5;
-
-    if (buttonMask) {
-        XEvent event{};
-        event.type = buttonMask;
-        event.xbutton.type = ButtonPress;
-        event.xbutton.display = display.get();
-        event.xbutton.window = root;
-        event.xbutton.root = root;
-        event.xbutton.subwindow = None;
-        event.xbutton.time = CurrentTime;
-        event.xbutton.x = x;
-        event.xbutton.y = y;
-        event.xbutton.x_root = x;
-        event.xbutton.y_root = y;
-        event.xbutton.state = 0;
-        event.xbutton.button = static_cast<unsigned int>(button);
-        event.xbutton.same_screen = 1;
-        XSendEvent(display.get(), root, 1, buttonMask, &event);
-        XFlush(display.get());
+    XTestFakeMotionEvent(display.get(), -1, x, y, CurrentTime);
+    if (buttonMask!=0) {
+        unsigned int button = extractButtonID(buttonMask);
+        constexpr int is_clicked_bit = 8;
+        bool is_clicked = buttonMask & 1 << (is_clicked_bit - 1);
+        spdlog::info("click: {}, button: {}", is_clicked, button);
+        XTestFakeButtonEvent(display.get(), button, is_clicked, CurrentTime);
     }
+    XFlush(display.get());
+}
+
+unsigned int VNCServer::extractButtonID(int buttonMask) const {
+    if (buttonMask & rfbButton1Mask) return Button1;
+    if (buttonMask & rfbButton2Mask) return Button2;
+    if (buttonMask & rfbButton3Mask) return Button3;
+    if (buttonMask & rfbButton4Mask) return Button4;
+    if (buttonMask & rfbButton5Mask) return Button5;
+    return 0;
 }
 
 void VNCServer::handleKeyEvent(rfbBool down, rfbKeySym key, rfbClientPtr) {

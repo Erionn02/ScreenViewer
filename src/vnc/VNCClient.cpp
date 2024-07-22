@@ -13,7 +13,6 @@ VNCClient::~VNCClient() {
 void VNCClient::run() {
     while (true) {
         SDL_RenderSetLogicalSize(renderer.get(), window_width, window_height);
-        spdlog::info("Width: {}, height: {}", window_width, window_height);
         if (WaitForMessage(client.get(), 100000) < 0) {
             throw VNCClientException("WaitForMessage failed");
         }
@@ -52,27 +51,24 @@ void VNCClient::handleIOEvents(std::chrono::milliseconds period) {
                 if (++i % 4) break;
                 int x = event.motion.x * client->width / window_width;
                 int y = event.motion.y * client->height / window_height;
-                spdlog::info("Mouse moved, x: {}/{}, y: {}/{}", x, window_width, y, window_height);
-                SendPointerEvent(client.get(), x, y, static_cast<int>(event.motion.state));
+                SendPointerEvent(client.get(), x, y, 0);
                 break;
             }
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP: {
-                spdlog::info("Mouse pressed");
                 int x = event.button.x * client->width / window_width;
                 int y = event.button.y * client->height / window_height;
                 int buttonMask = SDL_BUTTON(event.button.button);
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
-                    SendPointerEvent(client.get(), x, y, buttonMask);
-                } else {
-                    SendPointerEvent(client.get(), x, y, 0);
+                    constexpr int is_clicked = 1 << 7;
+                    buttonMask |= is_clicked;
                 }
+                SendPointerEvent(client.get(), x, y, buttonMask);
                 break;
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
                 auto key_sym = SDLKeySymToRfbKeySym(event.key.keysym.sym);
-                spdlog::info("Button pressed {}", key_sym);
                 rfbBool down = (event.type == SDL_KEYDOWN) ? TRUE : FALSE;
                 SendKeyEvent(client.get(), key_sym, down);
                 break;
