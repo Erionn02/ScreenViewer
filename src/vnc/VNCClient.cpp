@@ -1,4 +1,5 @@
 #include "vnc/VNCClient.hpp"
+#include "KeysMapping.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -70,10 +71,11 @@ void VNCClient::handleIOEvents(std::chrono::milliseconds period) {
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
-                auto key_sym = static_cast<rfbKeySym>(event.key.keysym.sym);
+                auto key_sym = SDLKeySymToRfbKeySym(event.key.keysym.sym);
                 spdlog::info("Button pressed {}", key_sym);
                 rfbBool down = (event.type == SDL_KEYDOWN) ? TRUE : FALSE;
                 SendKeyEvent(client.get(), key_sym, down);
+                break;
             }
         }
     }

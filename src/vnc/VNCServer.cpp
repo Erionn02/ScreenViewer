@@ -5,6 +5,7 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/extensions/XTest.h>
 
 #include <chrono>
 
@@ -151,29 +152,14 @@ void VNCServer::handlePointerEvent(int buttonMask, int x, int y, rfbClientPtr) {
 }
 
 void VNCServer::handleKeyEvent(rfbBool down, rfbKeySym key, rfbClientPtr) {
-    KeySym keysym = (KeySym) key;
-    KeyCode keycode = XKeysymToKeycode(display.get(), keysym);
-    spdlog::info("Got key: {}", keycode);
+    KeyCode keycode = XKeysymToKeycode(display.get(), key);
+    spdlog::info("Got keycode: {}");
     if (keycode == 0) {
+        std::cerr << "Invalid key symbol" << std::endl;
         return;
     }
 
-    XEvent event{};
-    event.xkey.type = down ? KeyPress : KeyRelease;
-    event.xkey.display = display.get();
-    event.xkey.window = root;
-    event.xkey.root = root;
-    event.xkey.subwindow = None;
-    event.xkey.time = CurrentTime;
-    event.xkey.x = 1;
-    event.xkey.y = 1;
-    event.xkey.x_root = 1;
-    event.xkey.y_root = 1;
-    event.xkey.state = 0;
-    event.xkey.keycode = keycode;
-    event.xkey.same_screen = 1;
-
-    XSendEvent(display.get(), root, 1, event.xkey.type, &event);
+    XTestFakeKeyEvent(display.get(), keycode, down, CurrentTime);
     XFlush(display.get());
 }
 
