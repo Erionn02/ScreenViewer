@@ -23,8 +23,8 @@ public:
     void run();
 private:
     void captureScreenshot();
-    void handlePointerEvent(int buttonMask, int x, int y, rfbClientPtr);
-    void handleKeyEvent(rfbBool down, rfbKeySym key, rfbClientPtr);
+    void handleMouseEvent(int button_mask, int x, int y, rfbClientPtr);
+    void handleKeyboardEvent(rfbBool down, rfbKeySym key, rfbClientPtr);
     void drawCursor(cv::Mat &img);
     std::unique_ptr<Display, decltype(&XCloseDisplay)> createDisplay();
     Window getWindow();
@@ -40,7 +40,6 @@ private:
     Window root;
     std::unique_ptr<char[]> frame_buffer;
     std::unique_ptr<rfbScreenInfo, decltype(&rfbScreenCleanup)> server;
-    unsigned int extractButtonID(int buttonMask) const;
 };
 
 

@@ -1,7 +1,10 @@
 #include "vnc/VNCClient.hpp"
 #include "KeysMapping.hpp"
+#include "MouseConfig.hpp"
 
 #include <spdlog/spdlog.h>
+
+using namespace std::chrono_literals;
 
 VNCClient::VNCClient(std::string server_ip) : client(createClient(std::move(server_ip))), window(createWindow()),
                                               renderer(createRenderer()), texture(createTexture()) {}
@@ -26,42 +29,39 @@ void VNCClient::run() {
         SDL_RenderCopy(renderer.get(), texture.get(), NULL, NULL);
         SDL_RenderPresent(renderer.get());
 
-        handleIOEvents(std::chrono::milliseconds(1));
+        handleIOEvents(5ms, 50ms);
     }
 }
 
-void VNCClient::handleIOEvents(std::chrono::milliseconds period) {
+void
+VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::milliseconds mouse_position_update_interval) {
     SDL_Event event{};
     auto start = std::chrono::high_resolution_clock::now();
 
-    while (SDL_PollEvent(&event) && (std::chrono::high_resolution_clock::now() - start) < period) {
+    while (SDL_PollEvent(&event) && (std::chrono::high_resolution_clock::now() - start) < max_poll_time) {
         switch (event.type) {
-            case SDL_QUIT: {
-                exit(1);
-            }
-            case SDL_WINDOWEVENT: {
-                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                    window_width = event.window.data1;
-                    window_height = event.window.data2;
+            [[likely]] case SDL_MOUSEMOTION: {
+                static auto last_pos_update = std::chrono::high_resolution_clock::now();
+                if (std::chrono::high_resolution_clock::now() - last_pos_update > mouse_position_update_interval) {
+                    int x = event.motion.x * client->width / window_width;
+                    int y = event.motion.y * client->height / window_height;
+                    SendPointerEvent(client.get(), x, y, Mouse::MOVE_MASK);
+                    last_pos_update = std::chrono::high_resolution_clock::now();
                 }
                 break;
             }
-            case SDL_MOUSEMOTION: {
-                static int i = 0;
-                if (++i % 4) break;
-                int x = event.motion.x * client->width / window_width;
-                int y = event.motion.y * client->height / window_height;
-                SendPointerEvent(client.get(), x, y, 0);
+            case SDL_MOUSEWHEEL: {
+                int button_mask = event.button.x > 0 ? Mouse::SCROLL_UP_MASK : Mouse::SCROLL_DOWN_MASK;
+                SendPointerEvent(client.get(), 0, 0, button_mask);
                 break;
             }
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP: {
                 int x = event.button.x * client->width / window_width;
                 int y = event.button.y * client->height / window_height;
-                int buttonMask = SDL_BUTTON(event.button.button);
+                int buttonMask = Mouse::convertToMask(event.button.button);
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
-                    constexpr int is_clicked = 1 << 7;
-                    buttonMask |= is_clicked;
+                    Mouse::setClicked(buttonMask);
                 }
                 SendPointerEvent(client.get(), x, y, buttonMask);
                 break;
@@ -72,6 +72,16 @@ void VNCClient::handleIOEvents(std::chrono::milliseconds period) {
                 rfbBool down = (event.type == SDL_KEYDOWN) ? TRUE : FALSE;
                 SendKeyEvent(client.get(), key_sym, down);
                 break;
+            }
+            [[unlikely]] case SDL_WINDOWEVENT: {
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    window_width = event.window.data1;
+                    window_height = event.window.data2;
+                }
+                break;
+            }
+            [[unlikely]] case SDL_QUIT: {
+                exit(1);
             }
         }
     }

@@ -1,5 +1,6 @@
 #include "vnc/VNCServer.hpp"
 #include "LambdaToFuncPtr.hpp"
+#include "MouseConfig.hpp"
 
 #include <spdlog/spdlog.h>
 #include <X11/Xutil.h>
@@ -52,9 +53,9 @@ std::unique_ptr<rfbScreenInfo, decltype(&rfbScreenCleanup)> VNCServer::createSer
     server_local->frameBuffer = frame_buffer.get();
     server_local->alwaysShared = TRUE;
     server_local->ptrAddEvent = lambdaToPointer(
-            [this](int buttonMask, int x, int y, rfbClientPtr ptr) { handlePointerEvent(buttonMask, x, y, ptr); });
+            [this](int buttonMask, int x, int y, rfbClientPtr ptr) { handleMouseEvent(buttonMask, x, y, ptr); });
     server_local->kbdAddEvent = lambdaToPointer(
-            [this](rfbBool down, rfbKeySym key, rfbClientPtr ptr) { handleKeyEvent(down, key, ptr); });
+            [this](rfbBool down, rfbKeySym key, rfbClientPtr ptr) { handleKeyboardEvent(down, key, ptr); });
 
     rfbInitServer(server_local.get());
     return server_local;
@@ -114,35 +115,33 @@ void VNCServer::drawCursor(cv::Mat &img ) {
 }
 
 
-void VNCServer::handlePointerEvent(int buttonMask, int x, int y, rfbClientPtr) {
-    spdlog::info("Pointer event, mask: {}, x: {}, y: {}", buttonMask, x, y);
+void VNCServer::handleMouseEvent(int button_mask, int x, int y, rfbClientPtr) {
+    spdlog::info("Mouse event, mask: {}, x: {}, y: {}", button_mask, x, y);
 
-    x += screens->x_org;
-    y += screens->y_org;
 
-    XTestFakeMotionEvent(display.get(), -1, x, y, CurrentTime);
-    if (buttonMask!=0) {
-        unsigned int button = extractButtonID(buttonMask);
-        constexpr int is_clicked_bit = 8;
-        bool is_clicked = buttonMask & 1 << (is_clicked_bit - 1);
+    if (button_mask & Mouse::MOVE_MASK) {
+        x += screens->x_org;
+        y += screens->y_org;
+        XTestFakeMotionEvent(display.get(), -1, x, y, CurrentTime);
+        XFlush(display.get());
+        return;
+    }
+
+    int button = Mouse::extractButtonID(button_mask);
+    if (Mouse::isScrollMoved(button_mask)) {
+        XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), True, CurrentTime);
+        XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), False, CurrentTime);
+    } else {
+        bool is_clicked = Mouse::isClicked(button_mask);
         spdlog::info("click: {}, button: {}", is_clicked, button);
-        XTestFakeButtonEvent(display.get(), button, is_clicked, CurrentTime);
+        XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), is_clicked, CurrentTime);
     }
     XFlush(display.get());
 }
 
-unsigned int VNCServer::extractButtonID(int buttonMask) const {
-    if (buttonMask & rfbButton1Mask) return Button1;
-    if (buttonMask & rfbButton2Mask) return Button2;
-    if (buttonMask & rfbButton3Mask) return Button3;
-    if (buttonMask & rfbButton4Mask) return Button4;
-    if (buttonMask & rfbButton5Mask) return Button5;
-    return 0;
-}
-
-void VNCServer::handleKeyEvent(rfbBool down, rfbKeySym key, rfbClientPtr) {
+void VNCServer::handleKeyboardEvent(rfbBool down, rfbKeySym key, rfbClientPtr) {
     KeyCode keycode = XKeysymToKeycode(display.get(), key);
-    spdlog::info("Got keycode: {}");
+    spdlog::info("Got keycode: {}", keycode);
     if (keycode == 0) {
         std::cerr << "Invalid key symbol" << std::endl;
         return;

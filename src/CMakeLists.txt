@@ -10,5 +10,6 @@ add_lib(screen-viewer-lib
         ${CMAKE_CURRENT_SOURCE_DIR}/vnc/VNCClient.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/vnc/VNCServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/KeysMapping.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/MouseConfig.cpp
         )
 

@@ -22,7 +22,7 @@ public:
     void run();
 
 private:
-    void handleIOEvents(std::chrono::milliseconds period);
+    void handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::milliseconds mouse_position_update_interval);
     std::unique_ptr<rfbClient, decltype(&rfbClientCleanup)> createClient(std::string server_ip);
     std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> createWindow();
     std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> createRenderer();
