@@ -119,7 +119,7 @@ void VNCServer::handleMouseEvent(int button_mask, int x, int y, rfbClientPtr) {
     spdlog::info("Mouse event, mask: {}, x: {}, y: {}", button_mask, x, y);
 
 
-    if (button_mask & Mouse::MOVE_MASK) {
+    if (button_mask == Mouse::MOVE) {
         x += screens->x_org;
         y += screens->y_org;
         XTestFakeMotionEvent(display.get(), -1, x, y, CurrentTime);
@@ -131,9 +131,8 @@ void VNCServer::handleMouseEvent(int button_mask, int x, int y, rfbClientPtr) {
     if (Mouse::isScrollMoved(button_mask)) {
         XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), True, CurrentTime);
         XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), False, CurrentTime);
-    } else {
+    } else if (button!=0) {
         bool is_clicked = Mouse::isClicked(button_mask);
-        spdlog::info("click: {}, button: {}", is_clicked, button);
         XTestFakeButtonEvent(display.get(), static_cast<unsigned int>(button), is_clicked, CurrentTime);
     }
     XFlush(display.get());

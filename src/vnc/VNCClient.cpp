@@ -45,13 +45,16 @@ VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::
                 if (std::chrono::high_resolution_clock::now() - last_pos_update > mouse_position_update_interval) {
                     int x = event.motion.x * client->width / window_width;
                     int y = event.motion.y * client->height / window_height;
-                    SendPointerEvent(client.get(), x, y, Mouse::MOVE_MASK);
+                    int button_mask = Mouse::MOVE;
+                    spdlog::info("MOVE: mask: {}.", button_mask);
+                    SendPointerEvent(client.get(), x, y, button_mask);
                     last_pos_update = std::chrono::high_resolution_clock::now();
                 }
                 break;
             }
             case SDL_MOUSEWHEEL: {
                 int button_mask = event.button.x > 0 ? Mouse::SCROLL_UP_MASK : Mouse::SCROLL_DOWN_MASK;
+                spdlog::info("WHEEL: mask: {}.", button_mask);
                 SendPointerEvent(client.get(), 0, 0, button_mask);
                 break;
             }
@@ -59,11 +62,12 @@ VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::
             case SDL_MOUSEBUTTONUP: {
                 int x = event.button.x * client->width / window_width;
                 int y = event.button.y * client->height / window_height;
-                int buttonMask = Mouse::convertToMask(event.button.button);
+                int button_mask = Mouse::convertToMask(event.button.button);
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
-                    Mouse::setClicked(buttonMask);
+                    Mouse::setClicked(button_mask);
                 }
-                SendPointerEvent(client.get(), x, y, buttonMask);
+                spdlog::info("CLICK: Button: {}, mask: {}, is_clicked: {}", event.button.button, button_mask, Mouse::isClicked(button_mask));
+                SendPointerEvent(client.get(), x, y, button_mask);
                 break;
             }
             case SDL_KEYDOWN:
