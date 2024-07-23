@@ -2,7 +2,7 @@ FROM gcc:13
 
 WORKDIR /ScreenViewer
 RUN apt update
-RUN apt install -y sudo
+RUN apt install -y sudo cmake
 COPY ./setup.sh .
 RUN ./setup.sh
 COPY ./conanfile.txt .
