@@ -1,0 +1,67 @@
+networks:
+  screen-viewer:
+    name: screen-viewer
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.26.4.0/24
+
+volumes:
+  db_data:
+  pg_data:
+
+services:
+  db:
+    image: postgres:14.5
+    environment:
+      POSTGRES_DB: "screen-viewer"
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database_schema.sql:/docker-entrypoint-initdb.d/database_schema.sql
+    healthcheck:
+      test: pg_isready
+    ports:
+      - "5432:5432"
+    networks:
+      screen-viewer:
+        ipv4_address: 172.26.4.2
+
+  pg-admin:
+    image: dpage/pgadmin4:latest
+    networks:
+      screen-viewer:
+        ipv4_address: 172.26.4.3
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "pg_admin_address@gmail.com"
+      PGADMIN_DEFAULT_PASSWORD: "dont tell anyone"
+    ports:
+      - "8908:80"
+    volumes:
+      - pg_data:/var/lib/pgadmin
+
+  screen-viewer-server:
+    image: screen-viewer-server:latest
+    build:
+      dockerfile: ./Dockerfile
+    environment:
+      http_bind_address: "http://0.0.0.0:2137"
+      POSTGRES_DB: "screen-viewer"
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_ADDRESS: "172.26.4.2"
+      SERVER_PORT: 4321
+      VNC_PORT: 5438
+    ports:
+      - 4321:4321
+      - 5438:5438
+    volumes:
+      - ~/.conan:~/.conan # for developing purposes
+    networks:
+      screen-viewer:
+        ipv4_address: 172.26.4.4
+    depends_on:
+      db:
+        condition: service_healthy
+
