@@ -5,6 +5,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} -w -O0 -g3 -no-pie")
 package_add_test(integration-tests
         SOURCES
         SocketTests.cpp
+        UsersManagerTests.cpp
         DEPENDS screen-viewer-lib
         )
 

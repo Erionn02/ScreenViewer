@@ -4,12 +4,8 @@ function(package_add_test TESTNAME)
     cmake_parse_arguments(ARGS "" "" "SOURCES;DEPENDS" ${ARGN})
     add_executable(${TESTNAME} ${ARGS_SOURCES})
     target_include_directories(${TESTNAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(
-            ${TESTNAME}
-            ${CONAN_LIBS}
-            ${CMAKE_DL_LIBS}
-            ${ARGS_DEPENDS}
-    )
+    target_link_libraries(${TESTNAME} PRIVATE "${ARGS_DEPENDS}")
+    set_link_options(${TESTNAME})
     gtest_discover_tests(${TESTNAME}
             WORKING_DIRECTORY ${PROJECT_DIR}
             PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}"
@@ -20,7 +16,7 @@ endfunction()
 function(add_app APP_NAME)
     add_executable(${APP_NAME} ${ARGN})
     get_property(PROJECT_LIBS GLOBAL PROPERTY PROJECT_LIBS_PROPERTY)
-    target_link_libraries(${APP_NAME} PRIVATE ${PROJECT_LIBS} vncclient vncserver)
+    target_link_libraries(${APP_NAME} PRIVATE ${PROJECT_LIBS})
     set_link_options(${APP_NAME})
 endfunction()
 
@@ -35,7 +31,7 @@ endfunction()
 
 function(set_link_options TARGET_NAME)
     target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${CONAN_LIBS})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${CONAN_LIBS} vncclient vncserver bcrypt)
     target_compile_options(${TARGET_NAME} PRIVATE
             -Wno-unused-variable
             -Wno-maybe-uninitialized
@@ -89,4 +85,15 @@ function(download_vnc_library)
     FetchContent_MakeAvailable(libvncserver)
     include_directories(SYSTEM ${libvncserver_SOURCE_DIR}/include)
     include_directories(SYSTEM ${libvncserver_BINARY_DIR}/include)
+endfunction()
+
+function(download_bcrypt_library)
+    include(FetchContent)
+    FetchContent_Declare(
+            libbcrypt
+            GIT_REPOSITORY https://github.com/trusch/libbcrypt.git
+            GIT_TAG master
+    )
+    FetchContent_MakeAvailable(libbcrypt)
+    include_directories(SYSTEM ${libbcrypt_SOURCE_DIR}/include)
 endfunction()

@@ -5,6 +5,8 @@ openssl/3.2.2
 spdlog/1.14.1
 sdl/2.30.5
 opencv/4.10.0
+libpqxx/7.9.0
+libxcrypt/4.4.36
 
 
 [generators]
