@@ -12,7 +12,8 @@ public:
 
 class UsersManager {
 public:
-    UsersManager(const std::string& database_address, const std::string& pg_user, const std::string& pg_password, const std::string& database_name);
+    UsersManager(const std::string &database_address, const std::string &pg_user, const std::string &pg_password,
+                 const std::string &database_name, unsigned short port = 5432);
 
     void addUser(const std::string& email, const std::string& password);
     bool authenticate(const std::string& email, const std::string& password);

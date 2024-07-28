@@ -5,13 +5,14 @@
 #include "ScreenViewerBaseException.hpp"
 
 enum class MessageType : unsigned char {
-    STREAM_BEGIN,
-    STREAM_CONTINUE,
-    STREAM_END,
     JUST_A_MESSAGE,
+    LOGIN,
+    START_STREAM,
+    STREAM_CONNECT,
     ACK,
     NACK,
-    NEW_USER_INPUT,
+    MOUSE_INPUT,
+    KEYBOARD_INPUT,
     SCREEN_UPDATE,
     DISCONNECT,
 

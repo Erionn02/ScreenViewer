@@ -152,3 +152,7 @@ void SocketBase::safeDisconnect(std::optional<std::string> disconnect_msg) {
         spdlog::warn(e.what());
     }
 }
+
+boost::asio::ssl::stream<tcp::socket> &SocketBase::getSocket() {
+    return socket_;
+}

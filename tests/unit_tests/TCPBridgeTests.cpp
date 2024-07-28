@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Bridge.hpp"
+#include "TestUtils.hpp"
 
 #include <boost/asio.hpp>
 #include <iostream>
@@ -12,40 +13,27 @@ namespace ip = boost::asio::ip;
 using boost::asio::ip::tcp;
 using boost::system::error_code;
 
-struct BridgeTests : public testing::Test {
+struct TCPBridgeTests : public testing::Test {
     const unsigned short TEST_PORT{48435};
     const std::string TEST_ADDRESS{"127.0.0.1"};
     asio::io_context io_context;
-    std::jthread j{[&]{io_context.run();}};
-    ip::tcp::acceptor acceptor{io_context, ip::tcp::endpoint(boost::asio::ip::address_v4::from_string(TEST_ADDRESS), TEST_PORT)};
+    ip::tcp::acceptor acceptor{io_context,
+                               ip::tcp::endpoint(boost::asio::ip::address_v4::from_string(TEST_ADDRESS), TEST_PORT)};
 
 
-
-    std::future<std::shared_ptr<Bridge<>>> createBridge() {
-        return std::async(std::launch::async, [&]{
+    std::future<std::shared_ptr<TCPBridge>> createBridge() {
+        return std::async(std::launch::async, [&] {
             ip::tcp::socket downstream_socket{io_context};
             ip::tcp::socket upstream_socket{io_context};
             acceptor.accept(downstream_socket);
             acceptor.accept(upstream_socket);
-            return std::make_shared<Bridge<>>(std::move(downstream_socket), std::move(upstream_socket));
+            return std::make_shared<TCPBridge>(std::move(downstream_socket), std::move(upstream_socket));
         });
 
-    }
-
-    template<std::size_t N>
-    void scheduleAsyncRead(tcp::socket& socket, std::array<char, N>& reply) {
-        socket.async_read_some(asio::buffer(reply), [&](error_code ec, std::size_t transferred_bytes) mutable {
-            if (!ec) {
-                std::cout<<"Server just wrote "<<std::string_view(reply.data(), transferred_bytes)<<std::endl;
-                scheduleAsyncRead(socket, reply);
-            } else {
-                std::cout << "Encountered an error during async read, aborting. Details: " << ec.what() << std::endl;
-            }
-        });
     }
 
     std::future<tcp::socket> connectToBridge() {
-        return std::async(std::launch::async, [&]{
+        return std::async(std::launch::async, [&] {
             tcp::socket socket{io_context};
             tcp::resolver resolver{io_context};
             connect(socket, resolver.resolve(TEST_ADDRESS, std::to_string(TEST_PORT)));
@@ -53,27 +41,57 @@ struct BridgeTests : public testing::Test {
         });
     }
 
+    std::pair<std::string, std::string>
+    send(tcp::socket &receiver, tcp::socket &sender, std::size_t message_size) const {
+        std::string response{};
+        response.resize(message_size);
+
+        auto random_str = generateRandomString(message_size);
+        std::string message{random_str};
+
+        write(receiver, asio::buffer(message));
+
+        boost::asio::read(sender, boost::asio::buffer(response), boost::asio::transfer_exactly(random_str.size()));
+
+        return {random_str, response};
+    }
+
+    void doTest(std::size_t message_size) {
+        auto bridge_future = createBridge();
+
+        auto first_client_future = connectToBridge();
+        auto second_client_future = connectToBridge();
+
+        std::jthread context_thread{[&](const std::stop_token &token) {
+            while (!token.stop_requested()) {
+                io_context.run();
+                io_context.reset();
+            }
+        }};
+
+        auto bridge = bridge_future.get();
+        bridge->start();
+
+        auto first_client = first_client_future.get();
+        auto second_client = second_client_future.get();
+
+        auto [first_message_sent, first_client_received_message] = send(first_client, second_client, message_size);
+        auto [second_message_sent, second_client_received_message] = send(second_client, first_client, message_size);
+
+        ASSERT_EQ(first_message_sent, first_client_received_message);
+        ASSERT_EQ(second_message_sent, second_client_received_message);
+    }
 };
 
 
-TEST_F(BridgeTests, justWorks) {
-    auto bridge_future = createBridge();
+TEST_F(TCPBridgeTests, canSendSmallMessages) {
+    std::size_t message_size{100};
 
-    auto first_client_future = connectToBridge();
-    auto second_client_future = connectToBridge();
+    doTest(message_size);
+}
 
-    auto bridge = bridge_future.get();
-    bridge->start();
+TEST_F(TCPBridgeTests, canSendBigMessages) {
+    std::size_t message_size{1'000'000};
 
-    auto first_client = first_client_future.get();
-    auto second_client = second_client_future.get();
-    std::array<char, 1024> buffer{};
-
-    std::string message_content{"TEST_MESSAGE CONTENT"};
-    write(first_client, asio::buffer(message_content), [](const boost::system::error_code &, const size_t &){});
-
-    auto bytes_read = boost::asio::read(second_client, boost::asio::buffer(buffer), boost::asio::transfer_at_least(1));
-
-    ASSERT_EQ(message_content.size(), bytes_read);
-    ASSERT_EQ(message_content, (std::string_view{buffer.data(), bytes_read}));
+    doTest(message_size);
 }

@@ -47,6 +47,8 @@ public:
     OwnedMessage receive();
     BorrowedMessage receiveToBuffer();
 
+    boost::asio::ssl::stream<tcp::socket>& getSocket();
+
     void receiveACK();
     void sendACK();
 

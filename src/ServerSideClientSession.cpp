@@ -5,7 +5,7 @@
 
 
 ServerSideClientSession::ServerSideClientSession(tcp::socket socket, asio::ssl::context &context,
-                                                 std::weak_ptr<SessionsManager> sessions_manager)
+                                                 std::weak_ptr<ServerSessionsManager> sessions_manager)
         : SocketBase({std::move(socket), context}), sessions_manager(std::move(sessions_manager)),
           endpoint(boost::lexical_cast<std::string>(socket_.next_layer().remote_endpoint())) {
 }

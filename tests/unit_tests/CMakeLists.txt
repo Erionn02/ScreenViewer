@@ -8,3 +8,4 @@ package_add_test(unit-tests
         DEPENDS screen-viewer-lib
         )
 
+target_include_directories(unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)

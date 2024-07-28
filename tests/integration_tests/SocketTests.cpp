@@ -3,44 +3,11 @@
 #include "SocketBase.hpp"
 #include "ClientSocket.hpp"
 #include "ScreenViewerSessionsServer.hpp"
-
-#include <random>
+#include "TestUtils.hpp"
 
 
 using namespace ::testing;
 
-class DummyTestSessionManager;
-
-class SocketBaseWrapper : public SocketBase {
-public:
-    SocketBaseWrapper(tcp::socket socket, boost::asio::ssl::context &context,
-                      std::weak_ptr<DummyTestSessionManager> test_session_manager) : SocketBase(
-            {std::move(socket), context}), test_session_manager(std::move(test_session_manager)) {}
-
-    void start();
-
-
-    std::weak_ptr<DummyTestSessionManager> test_session_manager;
-};
-
-class DummyTestSessionManager {
-public:
-    DummyTestSessionManager(std::function<void(std::shared_ptr<SocketBase>)> set_test_socket) : set_test_socket(
-            std::move(set_test_socket)) {}
-
-    void setTestSocket(std::shared_ptr<SocketBase> socket) {
-        set_test_socket(std::move(socket));
-    }
-
-    std::function<void(std::shared_ptr<SocketBase>)> set_test_socket;
-};
-
-void SocketBaseWrapper::start() {
-    socket_.handshake(boost::asio::ssl::stream_base::server);
-    if (auto manager = test_session_manager.lock()) {
-        manager->setTestSocket(shared_from_this());
-    }
-}
 
 struct SocketTest : public Test {
     const unsigned short TEST_PORT{3421};
@@ -78,22 +45,6 @@ struct SocketTest : public Test {
         while (!is_peer_socket_set.test()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-    }
-
-    std::string generateRandomString(std::size_t length) {
-        static auto &chrs = "080886789"
-                            "abcdefghijklmnopqrstuvwxyz"
-                            "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-        static thread_local std::mt19937 rg{std::random_device{}()};
-        static thread_local std::uniform_int_distribution<std::string::size_type> pick(0, sizeof(chrs) - 2);
-
-        std::string random_str;
-        random_str.reserve(length);
-        while (length--) {
-            random_str += chrs[pick(rg)];
-        }
-        return random_str;
     }
 
     ClientSocket createClientSocket() {

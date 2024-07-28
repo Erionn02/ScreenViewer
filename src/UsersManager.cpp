@@ -6,9 +6,10 @@
 
 
 UsersManager::UsersManager(const std::string &database_address, const std::string &pg_user,
-                           const std::string &pg_password, const std::string &database_name) : connection(
+                           const std::string &pg_password,
+                           const std::string &database_name, unsigned short port) : connection(
         fmt::format("dbname={} user={} password={} host={} port={}", database_name, pg_user,
-                    pg_password, database_address, 5432)) {
+                    pg_password, database_address, port)) {
     connection.prepare(PreparedStatements::INSERT_USER, R"(INSERT INTO "user" VALUES($1, $2);)");
     connection.prepare(PreparedStatements::GET_PASSWORD_HASH, R"(SELECT password_hash FROM "user" WHERE email=$1;)");
 }

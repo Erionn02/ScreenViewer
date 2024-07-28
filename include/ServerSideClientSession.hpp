@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SocketBase.hpp"
-#include "SessionsManager.hpp"
+#include "ServerSessionsManager.hpp"
 #include "ScreenViewerBaseException.hpp"
 
 
@@ -21,7 +21,7 @@ using boost::system::error_code;
 
 class ServerSideClientSession: public SocketBase {
 public:
-    ServerSideClientSession(tcp::socket socket, boost::asio::ssl::context &context, std::weak_ptr<SessionsManager> sessions_manager);
+    ServerSideClientSession(tcp::socket socket, boost::asio::ssl::context &context, std::weak_ptr<ServerSessionsManager> sessions_manager);
     ~ServerSideClientSession();
     void start();
 private:
@@ -29,6 +29,6 @@ private:
     MessageHandler callback(PMF pmf);
     void handleRead(BorrowedMessage message);
 
-    std::weak_ptr<SessionsManager> sessions_manager;
+    std::weak_ptr<ServerSessionsManager> sessions_manager;
     std::string endpoint;
 };

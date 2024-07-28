@@ -7,14 +7,15 @@
 
 
 struct UsersManagerTests : public testing::Test {
-    std::string database_address{"172.26.4.2"};
+    std::string database_address{"localhost"};
     std::string pg_user{"test"};
     std::string pg_password{"test"};
     std::string database_name{"screen-viewer"};
+    unsigned short test_port{54325};
 
     pqxx::connection test_connection{fmt::format("dbname={} user={} password={} host={} port={}", database_name, pg_user,
-                                                 pg_password, database_address, 5432)};
-    UsersManager manager{database_address, pg_user, pg_password, database_name};
+                                                 pg_password, database_address, test_port)};
+    UsersManager manager{database_address, pg_user, pg_password, database_name, test_port};
 
     std::string test_email{"some_user@gmail.com"};
     std::string test_password{"some_super_complicated_password_qwerty"};
