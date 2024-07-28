@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ScreenViewerBaseException.hpp"
+#include "ClientSocket.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <rfb/rfb.h>
@@ -16,30 +17,32 @@ public:
 };
 
 
-class VNCServer {
+class ScreenViewerStreamer {
 public:
-    VNCServer(std::uint32_t fps);
+    ScreenViewerStreamer(ClientSocket socket);
 
     void run();
 private:
     void captureScreenshot();
-    void handleMouseEvent(int button_mask, int x, int y, rfbClientPtr);
-    void handleKeyboardEvent(rfbBool down, rfbKeySym key, rfbClientPtr);
+    void handleMouseEvent(MouseEventData event_data);
+    void handleKeyboardEvent(KeyboardEventData event_data);
     void drawCursor(cv::Mat &img);
     std::unique_ptr<Display, decltype(&XCloseDisplay)> createDisplay();
     Window getWindow();
-    std::unique_ptr<rfbScreenInfo, decltype(&rfbScreenCleanup)> createServer();
     std::unique_ptr<XineramaScreenInfo, decltype(&XFree)> getScreensInfo();
-    std::unique_ptr<char[]> allocateBuffer();
+    void scheduleAsyncInputHandling();
+    void handleInput(BorrowedMessage message);
 
 
+
+    ClientSocket socket;
     std::uint32_t fps;
     std::unique_ptr<Display, decltype(&XCloseDisplay)> display;
     int screen_count{0};
     std::unique_ptr<XineramaScreenInfo, decltype(&XFree)> screens;
     Window root;
-    std::unique_ptr<char[]> frame_buffer;
-    std::unique_ptr<rfbScreenInfo, decltype(&rfbScreenCleanup)> server;
+    std::vector<uchar> frame_buffer{};
+    std::jthread input_handler_thread;
 };
 
 

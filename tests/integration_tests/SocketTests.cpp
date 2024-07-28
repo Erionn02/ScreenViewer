@@ -81,6 +81,30 @@ TEST_F(SocketTest, twoSocketsCanTalkToEachOther) {
     ASSERT_EQ(test_message, received_message);
 }
 
+TEST_F(SocketTest, canSendTrivialStructs) {
+    ClientSocket client_socket{"localhost", TEST_PORT, false};
+    waitForPeerSocket();
+
+    MouseEventData mouse_event{.button_mask = 2137,
+                        .x = 420,
+                        .y = 69};
+    client_socket.send(MessageType::MOUSE_INPUT, mouse_event);
+
+
+    auto received_message = peer_socket->receiveToBuffer();
+    ASSERT_EQ(MessageType::MOUSE_INPUT, received_message.type);
+    ASSERT_EQ(mouse_event, convertTo<MouseEventData>(received_message));
+
+    KeyboardEventData key_event{.down = true,
+                               .key = 2024};
+    client_socket.send(MessageType::KEYBOARD_INPUT, key_event);
+
+
+    received_message = peer_socket->receiveToBuffer();
+    ASSERT_EQ(MessageType::KEYBOARD_INPUT, received_message.type);
+    ASSERT_EQ(key_event, convertTo<KeyboardEventData>(received_message));
+}
+
 TEST_F(SocketTest, canReturnMessageCopy) {
     ClientSocket client_socket = createClientSocket();
 

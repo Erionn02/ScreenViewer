@@ -3,6 +3,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl/stream.hpp>
+#include <boost/lexical_cast.hpp>
 #include <spdlog/spdlog.h>
 
 #include <string>
@@ -17,6 +18,16 @@ public:
     Bridge(Stream_t vnc_server_socket, Stream_t vnc_client_socket)
             : vnc_server_socket(std::move(vnc_server_socket)),
               vnc_client_socket(std::move(vnc_client_socket)) {}
+
+    ~Bridge() {
+        try {
+            spdlog::info("Destroying bridge [{} <-> {}]",
+                         boost::lexical_cast<std::string>(vnc_server_socket.next_layer().remote_endpoint()),
+                         boost::lexical_cast<std::string>(vnc_client_socket.next_layer().remote_endpoint()));
+        } catch (const std::exception& e) {
+            spdlog::info("Destroying bridge, [{}]", e.what());
+        }
+    }
 
     void start() {
         boost::asio::async_read(vnc_client_socket,

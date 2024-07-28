@@ -111,7 +111,12 @@ SocketBase::asyncReadMessageImpl(std::shared_ptr<SocketBase> self, MessageHandle
                                     message_handler), this, header](error_code ec,
                                                             std::size_t message_size) {
                                 if (!ec) {
-                                    message_handler({header.type, {data_buffer.get(),message_size}});
+                                    try {
+                                        message_handler({header.type, {data_buffer.get(),message_size}});
+                                    } catch(const std::exception& e) {
+                                        spdlog::error("Encountered an error during handling message, aborting. Details: {}", e.what());
+                                        safeDisconnect(e.what());
+                                    }
                                 } else {
                                     spdlog::error(
                                             "Encountered an error during async read, aborting. Details: {}",
@@ -132,13 +137,17 @@ void SocketBase::receiveACK() {
         }
         throw SocketException(
                 fmt::format("Did not get ACK. Response type: {} size: {}. {}",
-                            static_cast<std::underlying_type_t<MessageType>>(message.type), message.content.size(),
+                            MESSAGE_TYPE_TO_STR.at(message.type), message.content.size(),
                             additional_message));
     }
 }
 
 void SocketBase::sendACK() {
     send(BorrowedMessage{MessageType::ACK, {}});
+}
+
+void SocketBase::sendNACK() {
+    send(BorrowedMessage{MessageType::NACK, {}});
 }
 
 std::string_view SocketBase::getBuffer() {

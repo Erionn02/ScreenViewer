@@ -1,5 +1,6 @@
 #include "ServerSessionsManager.hpp"
-#include "ServerSideClientSession.hpp"
+#include "AuthenticatedServerSideClientSession.hpp"
+#include "Bridge.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -7,12 +8,9 @@
 #include <filesystem>
 
 
-ServerSessionsManager::ServerSessionsManager() : ServerSessionsManager(DEFAULT_CLIENT_TIMEOUT,
-                                                     DEFAULT_CHECK_INTERVAL) {}
-
-ServerSessionsManager::ServerSessionsManager(std::chrono::seconds client_timeout,
-                                 std::chrono::seconds check_interval) {
-    connections_controller = std::jthread{[client_timeout, check_interval, this](const std::stop_token &stop_token) {
+void
+ServerSessionsManager::initCleanerThread(std::chrono::seconds client_timeout, std::chrono::seconds check_interval) {
+    connections_controller = std::jthread{[client_timeout, check_interval](const std::stop_token &stop_token) {
         while (!stop_token.stop_requested()) {
             terminateTimeoutClients(client_timeout);
             std::this_thread::sleep_for(check_interval);
@@ -34,28 +32,37 @@ void ServerSessionsManager::terminateTimeoutClients(std::chrono::seconds client_
     }
 }
 
-std::string ServerSessionsManager::registerStreamer(std::shared_ptr<ServerSideClientSession> sender, nlohmann::json json) {
+std::string ServerSessionsManager::registerStreamer(std::shared_ptr<AuthenticatedServerSideClientSession> sender) {
     while (true) {
         auto session_id = generateSessionID();
         std::unique_lock lock{m};
         if (senders_sessions.contains(session_id)) {
             continue;
         }
-        senders_sessions[session_id] = {.client_session = std::move(sender), .session_data = std::move(json),
+        senders_sessions[session_id] = {.client_session = std::move(sender),
                 .time_point = std::chrono::high_resolution_clock::now()};
         return session_id;
     }
 }
 
-std::pair<std::shared_ptr<ServerSideClientSession>, nlohmann::json>
-ServerSessionsManager::getStreamer(const std::string &session_code) {
+
+bool ServerSessionsManager::registerReceiver(std::shared_ptr<AuthenticatedServerSideClientSession> receiver,
+                                             const std::string & session_code) {
+
     std::unique_lock lock{m};
-    auto it = senders_sessions.find(session_code);
-    if (it == senders_sessions.end()) {
-        throw ServerSessionsManagerException{"Unknown session code."};
+    bool is_streamer_found = senders_sessions.contains(session_code);
+    if(is_streamer_found) {
+        auto sender_node = senders_sessions.extract(session_code);
+        lock.unlock();
+        receiver->sendACK();
+        auto& sender_session = sender_node.mapped().client_session;
+        sender_session->send(BorrowedMessage {.type = MessageType::START_STREAM, .content{}});
+        auto bridge = std::make_shared<SSLBridge>(std::move(sender_session->getSocket()), std::move(receiver->getSocket()));
+        spdlog::info("SSLBridge created!");
+        bridge->start();
+        spdlog::info("SSLBridge started!");
     }
-    auto node = senders_sessions.extract(it);
-    return {std::move(node.mapped().client_session), std::move(node.mapped().session_data)};
+    return is_streamer_found;
 }
 
 std::string ServerSessionsManager::generateSessionID() {

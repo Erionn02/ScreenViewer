@@ -1,6 +1,6 @@
 #pragma once
 #include "ScreenViewerBaseException.hpp"
-#include "MessageHeader.hpp"
+#include "Message.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -14,19 +14,6 @@ class SocketException : public ScreenViewerBaseException {
 public:
     using ScreenViewerBaseException::ScreenViewerBaseException;
 };
-
-template<typename Str_t>
-struct Message {
-    MessageType type;
-    Str_t content;
-
-    bool operator==(const Message& other) const {
-        return type == other.type && content == other.content;
-    };
-};
-
-using BorrowedMessage = Message<std::string_view>;
-using OwnedMessage = Message<std::string>;
 
 
 // Every message is preceded by header that contains amount of bytes to send
@@ -44,6 +31,12 @@ public:
     void send(const OwnedMessage &message);
     void send(BorrowedMessage message);
 
+    template<Trivial MessageTypeData>
+    void send(MessageType type, MessageTypeData data) {
+        send(BorrowedMessage {.type = type,
+                              .content = {std::bit_cast<char*>(&data), sizeof(data)}});
+    }
+
     OwnedMessage receive();
     BorrowedMessage receiveToBuffer();
 
@@ -51,6 +44,7 @@ public:
 
     void receiveACK();
     void sendACK();
+    void sendNACK();
 
     std::string_view getBuffer();
 protected:
@@ -66,5 +60,5 @@ protected:
     boost::asio::ssl::stream<tcp::socket> socket_;
     std::unique_ptr<char[]> data_buffer;
 public:
-    static constexpr std::size_t BUFFER_SIZE{1024 * 1024 * 1}; // 1 MiB
+    static constexpr std::size_t BUFFER_SIZE{1024 * 1024 * 5}; // 5 MiB
 };

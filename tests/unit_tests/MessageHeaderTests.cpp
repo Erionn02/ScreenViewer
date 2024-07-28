@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "MessageHeader.hpp"
+#include "Message.hpp"
 
 
 struct MessageHeaderTest : public testing::Test {

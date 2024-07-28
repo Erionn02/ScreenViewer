@@ -1,6 +1,7 @@
 #include "ClientSocket.hpp"
 
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 
 ClientSocket::ClientSocket(const std::string &host, unsigned short port, bool verify_cert) : ClientSocket(
         std::make_unique<boost::asio::io_context>(),
@@ -36,12 +37,25 @@ ClientSocket::~ClientSocket() {
     }
 }
 
+void ClientSocket::login(const std::string &email, const std::string &password) {
+    nlohmann::json json;
+    json["email"] = email;
+    json["password"] = password;
+    send(OwnedMessage{.type = MessageType::LOGIN, .content = to_string(json)});
+    receiveACK();
+}
+
+bool ClientSocket::findStreamer(const std::string &id) {
+    send(BorrowedMessage {.type = MessageType::FIND_STREAMER, .content = id});
+    auto message = receiveToBuffer();
+    return message.type == MessageType::ACK;}
+
 void ClientSocket::connect(const std::string &host, unsigned short port) {
     spdlog::debug("Connecting to the endpoint: {}:{}", host, port);
     tcp::resolver resolver(socket_.get_executor());
     auto endpoints = resolver.resolve(host, std::to_string(port));
     if (endpoints.empty()) {
-        throw SocketException(fmt::format("Did not find {}:{}", host, port));
+        throw ScreenViewerBaseException(fmt::format("Did not find {}:{}", host, port));
     }
     socket_.lowest_layer().connect(*endpoints.begin());
     socket_.handshake(boost::asio::ssl::stream_base::client);
@@ -60,4 +74,25 @@ bool ClientSocket::verify_certificate(bool preverified, boost::asio::ssl::verify
     X509_NAME_oneline(X509_get_subject_name(cert), subject_name, sizeof(subject_name));
     spdlog::debug("Preverified {}, verifying {}", preverified, subject_name);
     return preverified;
+}
+
+void ClientSocket::waitForStartStreamMessage() {
+    spdlog::info("Waiting for client connection...");
+    while(true) {
+        auto message = receiveToBuffer();
+        if(message.type == MessageType::START_STREAM) {
+            spdlog::info("Got connection, can start streaming now");
+            return;
+        }
+        spdlog::info("Got message while waiting: Type: {}", MESSAGE_TYPE_TO_STR.at(message.type));
+    }
+}
+
+std::string ClientSocket::requestStreamerID() {
+    send(BorrowedMessage{.type=MessageType::REGISTER_STREAMER, .content{}});
+    auto response = receive();
+    if(response.type == MessageType::ID) {
+        return response.content;
+    }
+    throw ScreenViewerBaseException(fmt::format("Could not register stream. Response type: {}", MESSAGE_TYPE_TO_STR.at(response.type)));
 }

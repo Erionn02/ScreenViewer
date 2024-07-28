@@ -1,40 +1,64 @@
-#include "vnc/VNCClient.hpp"
+#include "ScreenViewerClient.hpp"
 #include "KeysMapping.hpp"
 #include "MouseConfig.hpp"
 
 #include <spdlog/spdlog.h>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
+#include <iostream>
+#include <chrono>
 
 using namespace std::chrono_literals;
 
-VNCClient::VNCClient(std::string server_ip) : client(createClient(std::move(server_ip))), window(createWindow()),
-                                              renderer(createRenderer()), texture(createTexture()) {}
+ScreenViewerClient::ScreenViewerClient(ClientSocket socket) : socket(std::move(socket)), window(createWindow()),
+                                                              renderer(createRenderer()), texture(createTexture(frame_width, frame_height)) {}
 
-VNCClient::~VNCClient() {
+ScreenViewerClient::~ScreenViewerClient() {
     SDL_Quit();
 }
 
-void VNCClient::run() {
+void ScreenViewerClient::run() {
+    spdlog::info("Started ");
     while (true) {
-        SDL_RenderSetLogicalSize(renderer.get(), window_width, window_height);
-        if (WaitForMessage(client.get(), 100000) < 0) {
-            throw VNCClientException("WaitForMessage failed");
-        }
-        if (!HandleRFBServerMessage(client.get())) {
-            throw VNCClientException("HandleRFBServerMessage failed");
+        auto msg = socket.receiveToBuffer();
+        if (msg.type==MessageType::SCREEN_UPDATE) {
+            cv::Mat resized_img = getNewFrame(msg);
+
+            SDL_RenderSetLogicalSize(renderer.get(), window_width, window_height);
+            SDL_UpdateTexture(texture.get(), NULL, resized_img.data, static_cast<int>(resized_img.step1()));
+            SDL_RenderClear(renderer.get());
+            SDL_RenderCopy(renderer.get(), texture.get(), NULL, NULL);
+            SDL_RenderPresent(renderer.get());
+        } else {
+            spdlog::info("Unexpected message type: {}", MESSAGE_TYPE_TO_STR.at(msg.type));
         }
 
-        constexpr int PIXEL_WIDTH{4};
-        SDL_UpdateTexture(texture.get(), NULL, client->frameBuffer, client->width * PIXEL_WIDTH);
-        SDL_RenderClear(renderer.get());
-        SDL_RenderCopy(renderer.get(), texture.get(), NULL, NULL);
-        SDL_RenderPresent(renderer.get());
 
         handleIOEvents(5ms, 50ms);
     }
 }
 
+cv::Mat ScreenViewerClient::getNewFrame(BorrowedMessage msg) {
+    auto now = std::chrono::high_resolution_clock::now();
+    cv::Mat buffer(cv::Size{1, (int)msg.content.size()}, CV_8UC1, (void*)msg.content.data());
+    auto decoded_image = cv::imdecode(buffer, cv::IMREAD_UNCHANGED);
+    auto then = std::chrono::high_resolution_clock ::now();
+    std::cout<<"Decode duration: "<< std::chrono::duration_cast<std::chrono::milliseconds>(then-now) << std::endl;
+
+    if (decoded_image.rows != frame_height || decoded_image.cols != frame_width) {
+        frame_height = decoded_image.rows;
+        frame_width = decoded_image.cols;
+        texture = createTexture(frame_width, frame_height);
+        cv::Mat resized_img{};
+        cv::resize(decoded_image, resized_img, cv::Size(frame_width, frame_height));
+        return resized_img;
+    }
+    return decoded_image;
+}
+
 void
-VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::milliseconds mouse_position_update_interval) {
+ScreenViewerClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::milliseconds mouse_position_update_interval) {
     SDL_Event event{};
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -43,11 +67,13 @@ VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::
             [[likely]] case SDL_MOUSEMOTION: {
                 static auto last_pos_update = std::chrono::high_resolution_clock::now();
                 if (std::chrono::high_resolution_clock::now() - last_pos_update > mouse_position_update_interval) {
-                    int x = event.motion.x * client->width / window_width;
-                    int y = event.motion.y * client->height / window_height;
+                    int x = event.motion.x * frame_width / window_width;
+                    int y = event.motion.y * frame_height / window_height;
                     int button_mask = Mouse::MOVE;
                     spdlog::info("MOVE: mask: {}.", button_mask);
-                    SendPointerEvent(client.get(), x, y, button_mask);
+                    socket.send(MessageType::MOUSE_INPUT, MouseEventData{.button_mask = button_mask,
+                                                                         .x = x,
+                                                                         .y = y});
                     last_pos_update = std::chrono::high_resolution_clock::now();
                 }
                 break;
@@ -55,26 +81,28 @@ VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::
             case SDL_MOUSEWHEEL: {
                 int button_mask = event.button.x > 0 ? Mouse::SCROLL_UP_MASK : Mouse::SCROLL_DOWN_MASK;
                 spdlog::info("WHEEL: mask: {}.", button_mask);
-                SendPointerEvent(client.get(), 0, 0, button_mask);
+                socket.send(MessageType::MOUSE_INPUT, MouseEventData{.button_mask = button_mask,
+                        .x = 0,
+                        .y = 0});
                 break;
             }
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP: {
-                int x = event.button.x * client->width / window_width;
-                int y = event.button.y * client->height / window_height;
+                int x = event.button.x * frame_width / window_width;
+                int y = event.button.y * frame_height / window_height;
                 int button_mask = Mouse::convertToMask(event.button.button);
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
                     Mouse::setClicked(button_mask);
                 }
                 spdlog::info("CLICK: Button: {}, mask: {}, is_clicked: {}", event.button.button, button_mask, Mouse::isClicked(button_mask));
-                SendPointerEvent(client.get(), x, y, button_mask);
+                socket.send(MessageType::MOUSE_INPUT, MouseEventData{.button_mask = button_mask, .x = x, .y = y});
                 break;
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
                 auto key_sym = SDLKeySymToRfbKeySym(event.key.keysym.sym);
-                rfbBool down = (event.type == SDL_KEYDOWN) ? TRUE : FALSE;
-                SendKeyEvent(client.get(), key_sym, down);
+                bool is_key_down = event.type == SDL_KEYDOWN;
+                socket.send(MessageType::KEYBOARD_INPUT, KeyboardEventData{.down = is_key_down, .key = key_sym});
                 break;
             }
             [[unlikely]] case SDL_WINDOWEVENT: {
@@ -91,30 +119,7 @@ VNCClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std::chrono::
     }
 }
 
-
-std::unique_ptr<rfbClient, decltype(&rfbClientCleanup)> VNCClient::createClient(std::string server_ip) {
-    std::unique_ptr<rfbClient, decltype(&rfbClientCleanup)> client_local = {rfbGetClient(8, 3, 4), rfbClientCleanup};
-    if (!client_local) {
-        throw VNCClientException("Failed to create to rfbClient.");
-    }
-    client_local->canHandleNewFBSize = FALSE;
-    client_local->appData.encodingsString = strdup("tight hextile zlib corre rre raw");
-    client_local->appData.compressLevel = 9;
-    client_local->appData.qualityLevel = 9;
-
-    int argc = 2;
-    std::string program_name = "VNCClient";
-    char *argv[] = {program_name.data(), server_ip.data()};
-    if (!rfbInitClient(client.get(), &argc, argv)) {
-        throw VNCClientException("Failed to connect to VNC server");
-    }
-    spdlog::info("Connected to VNC server");
-
-
-    return client_local;
-}
-
-std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> VNCClient::createWindow() {
+std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> ScreenViewerClient::createWindow() {
     std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window_local{SDL_CreateWindow("VNC Client",
                                                                                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                                                                             window_width, window_height,
@@ -125,7 +130,7 @@ std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> VNCClient::createWindo
     return window_local;
 }
 
-std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> VNCClient::createRenderer() {
+std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> ScreenViewerClient::createRenderer() {
     std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> renderer_local{SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED),
                                                                                  SDL_DestroyRenderer};
     if (!renderer_local) {
@@ -134,11 +139,11 @@ std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> VNCClient::createR
     return renderer_local;
 }
 
-std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> VNCClient::createTexture() {
+std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> ScreenViewerClient::createTexture(int width, int height) {
     std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture_local {SDL_CreateTexture(renderer.get(),
                                 SDL_PIXELFORMAT_ARGB8888,
                                 SDL_TEXTUREACCESS_STREAMING,
-                                client->width, client->height), SDL_DestroyTexture};
+                                                                                                 width, height), SDL_DestroyTexture};
     if (!texture_local) {
         throw VNCClientException(fmt::format("Could not create texture: {}", SDL_GetError()));
     }

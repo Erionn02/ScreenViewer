@@ -1,8 +1,13 @@
 #include "UsersManager.hpp"
 
+#include <iostream>
 
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " email password" << std::endl;
+        return 1;
+    }
 
-int main() {
     std::string database_address{"localhost"};
     std::string pg_user{"postgres"};
     std::string pg_password{"root"};

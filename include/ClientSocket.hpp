@@ -5,16 +5,26 @@
 #include <thread>
 #include <fstream>
 
+class ClientSocketException: public ScreenViewerBaseException {
+public:
+    using ScreenViewerBaseException::ScreenViewerBaseException;
+};
+
+
 class ClientSocket : public SocketBase {
 public:
     ClientSocket(const std::string &host, unsigned short port, bool verify_cert = true);
     ClientSocket(ClientSocket&&) = default;
     ~ClientSocket();
 
-    void connect(const std::string &host, unsigned short port);
+    void login(const std::string &email, const std::string &password);
+    bool findStreamer(const std::string& id);
+    std::string requestStreamerID();
+    void waitForStartStreamMessage();
 private:
     ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context);
 
+    void connect(const std::string &host, unsigned short port);
     bool verify_certificate(bool preverified, boost::asio::ssl::verify_context &ctx);
     void start();
 

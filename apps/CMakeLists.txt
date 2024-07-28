@@ -8,12 +8,8 @@ add_app(ScreenViewerClient
         ScreenViewerClient.cpp
         )
 
-add_app(vnc_client
-        vnc_client.cpp
-        )
-
-add_app(vnc_server
-        vnc_server.cpp
+add_app(ScreenViewerStreamer
+        ScreenViewerStreamer.cpp
         )
 
 add_app(add_user
