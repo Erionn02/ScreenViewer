@@ -3,6 +3,7 @@
 #include "ScreenViewerBaseException.hpp"
 #include "ClientSocket.hpp"
 
+#include <tbb/concurrent_queue.h>
 #include <opencv2/opencv.hpp>
 #include <rfb/rfb.h>
 #include <X11/Xlib.h>
@@ -30,8 +31,8 @@ private:
     std::unique_ptr<Display, decltype(&XCloseDisplay)> createDisplay();
     Window getWindow();
     std::unique_ptr<XineramaScreenInfo, decltype(&XFree)> getScreensInfo();
-    void scheduleAsyncInputHandling();
-    void handleInput(BorrowedMessage message);
+    void runInputPollerThread();
+    void handleInput(const OwnedMessage &message);
 
 
 
@@ -42,7 +43,9 @@ private:
     std::unique_ptr<XineramaScreenInfo, decltype(&XFree)> screens;
     Window root;
     std::vector<uchar> frame_buffer{};
-    std::jthread input_handler_thread;
+    tbb::concurrent_queue<OwnedMessage> messages{};
+    std::jthread message_poller_thread;
+    void handleIOEvents();
 };
 
 

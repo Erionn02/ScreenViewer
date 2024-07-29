@@ -48,20 +48,29 @@ std::unique_ptr<XineramaScreenInfo, decltype(&XFree)> ScreenViewerStreamer::getS
 void ScreenViewerStreamer::run() {
     spdlog::info("VNC server started");
 
-    scheduleAsyncInputHandling();
+    runInputPollerThread();
     while (true) {
         captureScreenshot();
-        socket.send(BorrowedMessage{.type = MessageType::SCREEN_UPDATE,
+        auto ec = socket.asyncSendMessage(OwnedMessage{.type = MessageType::SCREEN_UPDATE,
                 .content = {std::bit_cast<char *>(frame_buffer.data()), frame_buffer.size()}});
+        handleIOEvents();
+        ec.get();
     }
 }
 
-void ScreenViewerStreamer::scheduleAsyncInputHandling() {
-    input_handler_thread = std::jthread{[&](const std::stop_token &stop_token) {
+void ScreenViewerStreamer::handleIOEvents() {
+    OwnedMessage message{};
+    while(messages.try_pop(message)) {
+        handleInput(message);
+    }
+}
+
+void ScreenViewerStreamer::runInputPollerThread() {
+    message_poller_thread = std::jthread{[&](const std::stop_token &stop_token) {
         while (!stop_token.stop_requested()) {
-            auto message = socket.receiveToBuffer();
+            auto message = socket.receive();
             try {
-                handleInput(message);
+                messages.push(message);
             } catch (const std::exception &e) {
                 spdlog::error("Exception while input handling: {}", e.what());
             }
@@ -70,7 +79,7 @@ void ScreenViewerStreamer::scheduleAsyncInputHandling() {
     }};
 }
 
-void ScreenViewerStreamer::handleInput(BorrowedMessage message) {
+void ScreenViewerStreamer::handleInput(const OwnedMessage &message) {
     switch (message.type) {
         case MessageType::KEYBOARD_INPUT: {
             handleKeyboardEvent(convertTo<KeyboardEventData>(message));

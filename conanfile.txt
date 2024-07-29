@@ -8,6 +8,7 @@ opencv/4.10.0
 libpqxx/7.9.0
 libxcrypt/4.4.36
 nlohmann_json/3.11.3
+onetbb/2021.12.0
 
 [generators]
 cmake

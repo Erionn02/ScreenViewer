@@ -19,9 +19,10 @@ services:
       POSTGRES_PASSWORD: "$POSTGRES_PASSWORD"
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./database_schema.sql:/docker-entrypoint-initdb.d/database_schema.sql
+      - ./database_schema.sql:/docker-e                                                                                                                                ntrypoint-initdb.d/database_schema.sql
     healthcheck:
       test: pg_isready
+    restart: always
     ports:
       - "5432:5432"
     networks:

@@ -165,3 +165,20 @@ void SocketBase::safeDisconnect(std::optional<std::string> disconnect_msg) {
 boost::asio::ssl::stream<tcp::socket> &SocketBase::getSocket() {
     return socket_;
 }
+
+std::future<boost::system::error_code> SocketBase::asyncSendMessage(OwnedMessage message) {
+    MessageHeader header{.message_size = message.content.size(),
+            .type = message.type};
+
+    std::string msg = std::string{std::bit_cast<char*>(&header), sizeof(header)} + std::move(message.content);
+
+
+    std::promise<boost::system::error_code> ec{};
+    auto future = ec.get_future();
+    async_write(socket_, asio::buffer(msg),
+                [this, self = shared_from_this(), promise = std::move(ec), msg = std::move(msg)](error_code ec, size_t /*length*/) mutable {
+                    promise.set_value(ec);
+                });
+
+    return future;
+}

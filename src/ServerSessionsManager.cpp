@@ -34,11 +34,11 @@ void ServerSessionsManager::terminateTimeoutClients(std::chrono::seconds client_
 
 std::string ServerSessionsManager::registerStreamer(std::shared_ptr<AuthenticatedServerSideClientSession> sender) {
     while (true) {
-        auto session_id = generateSessionID();
+        auto session_id = "test";
         std::unique_lock lock{m};
-        if (senders_sessions.contains(session_id)) {
-            continue;
-        }
+//        if (senders_sessions.contains(session_id)) {
+//            senders_sessions.erase(session_id)
+//        }
         senders_sessions[session_id] = {.client_session = std::move(sender),
                 .time_point = std::chrono::high_resolution_clock::now()};
         return session_id;
