@@ -6,7 +6,6 @@
 
 #include <tbb/concurrent_queue.h>
 #include <opencv2/opencv.hpp>
-#include <rfb/rfb.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xinerama.h>
 

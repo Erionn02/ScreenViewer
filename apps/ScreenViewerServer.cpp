@@ -1,4 +1,5 @@
 #include "Servers.hpp"
+#include "ServerSessionsManager.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -17,6 +18,9 @@ int main() {
     SessionsServer sessions_server{SESSIONS_SERVER_PORT, TEST_CERTS_DIR, users_manager};
     ProxyServer proxy_server{PROXY_SERVER_PORT, TEST_CERTS_DIR, users_manager};
 
+    std::chrono::seconds client_timeout{120};
+    std::chrono::seconds check_interval{1};
+    ServerSessionsManager::initCleanerThread(client_timeout, check_interval);
     std::jthread t{[&]{
         proxy_server.run();
     }};

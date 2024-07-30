@@ -31,7 +31,7 @@ endfunction()
 
 function(set_link_options TARGET_NAME)
     target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${CONAN_LIBS} vncclient vncserver bcrypt)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${CONAN_LIBS} bcrypt)
     target_compile_options(${TARGET_NAME} PRIVATE
             -Wno-unused-variable
             -Wno-maybe-uninitialized
@@ -73,18 +73,6 @@ function(download_conan_cmake)
         file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/master/conan.cmake"
                 "${CMAKE_BINARY_DIR}/conan/conan.cmake")
     endif ()
-endfunction()
-
-function(download_vnc_library)
-    include(FetchContent)
-    FetchContent_Declare(
-            libvncserver
-            GIT_REPOSITORY https://github.com/LibVNC/libvncserver.git
-            GIT_TAG master
-    )
-    FetchContent_MakeAvailable(libvncserver)
-    include_directories(SYSTEM ${libvncserver_SOURCE_DIR}/include)
-    include_directories(SYSTEM ${libvncserver_BINARY_DIR}/include)
 endfunction()
 
 function(download_bcrypt_library)

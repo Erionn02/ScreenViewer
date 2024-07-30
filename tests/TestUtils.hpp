@@ -2,6 +2,8 @@
 
 #include "SocketBase.hpp"
 
+#include <pqxx/transaction>
+
 #include <random>
 
 class DummyTestSessionManager;
@@ -51,4 +53,10 @@ inline std::string generateRandomString(std::size_t length) {
         random_str += chrs[pick(rg)];
     }
     return random_str;
+}
+
+inline void clearDatabase(pqxx::connection& connection) {
+    pqxx::work transaction{connection};
+    transaction.exec(R"(DELETE FROM "user";)");
+    transaction.commit();
 }

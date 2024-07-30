@@ -6,7 +6,7 @@
 
 ProxySession::ProxySession(tcp::socket socket, asio::ssl::context &context,
                                                  std::weak_ptr<UsersManager> users_manager)
-        : AuthenticatedServerSideClientSession(std::move(socket), context, std::move(users_manager)) {
+        : AuthenticatedSession(std::move(socket), context, std::move(users_manager)) {
 }
 
 void ProxySession::handleRead(BorrowedMessage message) {
@@ -19,8 +19,9 @@ void ProxySession::handleRead(BorrowedMessage message) {
             break;
         }
         case MessageType::FIND_STREAMER: {
-            bool is_found = ServerSessionsManager::registerReceiver(std::static_pointer_cast<ProxySession>(shared_from_this()),
-                                                    std::string{message.content});
+            bool is_found = ServerSessionsManager::createBridgeWithStreamer(
+                    std::static_pointer_cast<ProxySession>(shared_from_this()),
+                    std::string{message.content});
             if(!is_found) {
                 spdlog::info("Endpoint {} did not find streamer.", endpoint);
                 sendNACK();
@@ -29,8 +30,7 @@ void ProxySession::handleRead(BorrowedMessage message) {
             break;
         }
         default: {
-            send(OwnedMessage{.type = MessageType::JUST_A_MESSAGE, .content = fmt::format("Got your message! '{}'",
-                                                                                          message.content)});
+            send(OwnedMessage{.type = MessageType::RESPONSE, .content = fmt::format("Did not expect {} message.", MESSAGE_TYPE_TO_STR.at(message.type))});
             scheduleNewAsyncRead();
         }
 

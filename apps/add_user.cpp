@@ -15,5 +15,5 @@ int main(int argc, char *argv[]) {
 
     UsersManager manager{database_address, pg_user, pg_password, database_name};
 
-    manager.addUser("some_user@gmail.com", "superStrongPassword");
+    manager.addUser(argv[1], argv[2]);
 }

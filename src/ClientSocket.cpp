@@ -46,7 +46,7 @@ void ClientSocket::login(const std::string &email, const std::string &password) 
     receiveACK();
 }
 
-bool ClientSocket::findStreamer(const std::string &id) {
+bool ClientSocket::findOtherClient(const std::string &id) {
     send(BorrowedMessage {.type = MessageType::FIND_STREAMER, .content = id});
     auto message = receiveToBuffer();
     return message.type == MessageType::ACK;}
@@ -69,7 +69,6 @@ void ClientSocket::start() {
             io_context_ptr->run();
             io_context_ptr->restart();
         }
-        spdlog::info("End");
     }};
 }
 
@@ -81,16 +80,18 @@ bool ClientSocket::verify_certificate(bool preverified, boost::asio::ssl::verify
     return preverified;
 }
 
-void ClientSocket::waitForStartStreamMessage() {
+bool ClientSocket::waitForStartStreamMessage(std::chrono::seconds timeout) {
     spdlog::info("Waiting for client connection...");
-    while(true) {
+    auto start = std::chrono::high_resolution_clock::now();
+    while((std::chrono::high_resolution_clock::now() - start) < timeout) {
         auto message = receiveToBuffer();
         if(message.type == MessageType::START_STREAM) {
             spdlog::info("Got connection, can start streaming now");
-            return;
+            return true;
         }
         spdlog::info("Got message while waiting: Type: {}", MESSAGE_TYPE_TO_STR.at(message.type));
     }
+    return false;
 }
 
 std::string ClientSocket::requestStreamerID() {

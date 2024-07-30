@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AuthenticatedServerSideClientSession.hpp"
+#include "AuthenticatedSession.hpp"
 #include "ScreenViewerBaseException.hpp"
 
 
@@ -18,7 +18,7 @@ using boost::asio::ip::tcp;
 using boost::system::error_code;
 
 
-class ProxySession: public AuthenticatedServerSideClientSession {
+class ProxySession: public AuthenticatedSession {
 public:
     ProxySession(tcp::socket socket, boost::asio::ssl::context &context, std::weak_ptr<UsersManager> sessions_manager);
 private:

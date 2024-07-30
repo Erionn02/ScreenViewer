@@ -19,13 +19,13 @@ using boost::asio::ip::tcp;
 using boost::system::error_code;
 
 
-class AuthenticatedServerSideClientSession: public SocketBase {
+class AuthenticatedSession: public SocketBase {
 public:
-    AuthenticatedServerSideClientSession(tcp::socket socket, boost::asio::ssl::context &context, std::weak_ptr<UsersManager> users_manager);
-    ~AuthenticatedServerSideClientSession() override;
+    AuthenticatedSession(tcp::socket socket, boost::asio::ssl::context &context, std::weak_ptr<UsersManager> users_manager);
+    ~AuthenticatedSession() override;
     void start();
 private:
-    using PMF =  void (AuthenticatedServerSideClientSession::*)(BorrowedMessage);
+    using PMF =  void (AuthenticatedSession::*)(BorrowedMessage);
     MessageHandler callback(PMF pmf);
     virtual void handleRead(BorrowedMessage message);
     void authenticateCallback(BorrowedMessage message);

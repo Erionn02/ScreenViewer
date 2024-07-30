@@ -11,7 +11,7 @@
 #include <chrono>
 
 
-class AuthenticatedServerSideClientSession;
+class AuthenticatedSession;
 
 class ServerSessionsManagerException: public ScreenViewerBaseException {
 public:
@@ -22,19 +22,17 @@ class ServerSessionsManager {
 public:
     static void initCleanerThread(std::chrono::seconds client_timeout, std::chrono::seconds check_interval);
 
-
-    static std::string registerStreamer(std::shared_ptr<AuthenticatedServerSideClientSession> streamer);
-    static bool registerReceiver(std::shared_ptr<AuthenticatedServerSideClientSession> receiver,
-                                 const std::string &session_code);
-
-
+    static std::string registerStreamer(std::shared_ptr<AuthenticatedSession> streamer);
+    static bool createBridgeWithStreamer(std::shared_ptr<AuthenticatedSession> receiver,
+                                         const std::string &session_code);
     static std::size_t currentSessions();
+    static void reset();
 private:
     static std::string generateSessionID();
     static void terminateTimeoutClients(std::chrono::seconds client_timeout);
 
     struct TimedClientSession {
-        std::shared_ptr<AuthenticatedServerSideClientSession> client_session;
+        std::shared_ptr<AuthenticatedSession> client_session;
         std::chrono::time_point<std::chrono::system_clock> time_point;
     };
 

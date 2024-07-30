@@ -43,7 +43,7 @@ void SocketBase::disconnect(std::optional<std::string> disconnect_msg) {
     if (disconnect_msg.has_value()) {
         send(BorrowedMessage{MessageType::DISCONNECT, *disconnect_msg});
     }
-    socket_.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+    socket_.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both);
 }
 
 OwnedMessage SocketBase::receive() {

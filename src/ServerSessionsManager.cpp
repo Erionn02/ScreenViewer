@@ -1,19 +1,23 @@
 #include "ServerSessionsManager.hpp"
-#include "AuthenticatedServerSideClientSession.hpp"
+#include "AuthenticatedSession.hpp"
 #include "Bridge.hpp"
 
 #include <spdlog/spdlog.h>
 
 #include <random>
 #include <filesystem>
+#include <condition_variable>
 
 
 void
 ServerSessionsManager::initCleanerThread(std::chrono::seconds client_timeout, std::chrono::seconds check_interval) {
     connections_controller = std::jthread{[client_timeout, check_interval](const std::stop_token &stop_token) {
+        std::mutex cv_mutex;
+        std::condition_variable cv;
         while (!stop_token.stop_requested()) {
             terminateTimeoutClients(client_timeout);
-            std::this_thread::sleep_for(check_interval);
+            std::unique_lock lock{cv_mutex};
+            cv.wait_for(lock, check_interval, [&]{return stop_token.stop_requested();});
         }
     }};
 }
@@ -32,13 +36,13 @@ void ServerSessionsManager::terminateTimeoutClients(std::chrono::seconds client_
     }
 }
 
-std::string ServerSessionsManager::registerStreamer(std::shared_ptr<AuthenticatedServerSideClientSession> sender) {
+std::string ServerSessionsManager::registerStreamer(std::shared_ptr<AuthenticatedSession> sender) {
     while (true) {
-        auto session_id = "test";
+        auto session_id = generateSessionID();
         std::unique_lock lock{m};
-//        if (senders_sessions.contains(session_id)) {
-//            senders_sessions.erase(session_id)
-//        }
+        if (senders_sessions.contains(session_id)) {
+            continue;
+        }
         senders_sessions[session_id] = {.client_session = std::move(sender),
                 .time_point = std::chrono::high_resolution_clock::now()};
         return session_id;
@@ -46,8 +50,8 @@ std::string ServerSessionsManager::registerStreamer(std::shared_ptr<Authenticate
 }
 
 
-bool ServerSessionsManager::registerReceiver(std::shared_ptr<AuthenticatedServerSideClientSession> receiver,
-                                             const std::string & session_code) {
+bool ServerSessionsManager::createBridgeWithStreamer(std::shared_ptr<AuthenticatedSession> receiver,
+                                                     const std::string & session_code) {
 
     std::unique_lock lock{m};
     bool is_streamer_found = senders_sessions.contains(session_code);
@@ -85,4 +89,13 @@ std::string ServerSessionsManager::generateSessionID() {
 std::size_t ServerSessionsManager::currentSessions() {
     std::unique_lock lock{m};
     return senders_sessions.size();
+}
+
+void ServerSessionsManager::reset() {
+    std::unique_lock lock{m};
+    senders_sessions.clear();
+    if(connections_controller.joinable()) {
+        connections_controller.request_stop();
+        connections_controller.join();
+    }
 }

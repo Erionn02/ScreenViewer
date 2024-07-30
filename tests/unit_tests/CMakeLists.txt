@@ -5,6 +5,7 @@ package_add_test(unit-tests
         SOURCES
         MessageHeaderTests.cpp
         TCPBridgeTests.cpp
+        ServerSessionsManagerTests.cpp
         DEPENDS screen-viewer-lib
         )
 

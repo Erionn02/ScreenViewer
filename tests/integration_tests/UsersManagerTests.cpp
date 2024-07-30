@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "UsersManager.hpp"
-#include <pqxx/transaction>
+#include "TestUtils.hpp"
 
 #include <fmt/format.h>
 
@@ -22,17 +22,11 @@ struct UsersManagerTests : public testing::Test {
 
 
     void SetUp() override {
-        clearDatabase();
+        clearDatabase(test_connection);
     }
 
     void TearDown() override {
-        clearDatabase();
-    }
-
-    void clearDatabase() {
-        pqxx::work transaction{test_connection};
-        transaction.exec(R"(DELETE FROM "user";)");
-        transaction.commit();
+        clearDatabase(test_connection);
     }
 
     std::size_t getAmountOfUsers() {

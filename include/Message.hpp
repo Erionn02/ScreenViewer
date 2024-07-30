@@ -15,6 +15,7 @@ enum class MessageType : unsigned char {
     REGISTER_STREAMER,
     FIND_STREAMER,
     START_STREAM,
+    RESPONSE,
     ID,
     ACK,
     NACK,
@@ -31,6 +32,9 @@ const std::unordered_map<MessageType, std::string> MESSAGE_TYPE_TO_STR{
         {MessageType::LOGIN,             "LOGIN"},
         {MessageType::REGISTER_STREAMER, "REGISTER_STREAMER"},
         {MessageType::FIND_STREAMER,     "FIND_STREAMER"},
+        {MessageType::START_STREAM,      "START_STREAM"},
+        {MessageType::RESPONSE,          "RESPONSE"},
+        {MessageType::ID,                "ID"},
         {MessageType::ACK,               "ACK"},
         {MessageType::NACK,              "NACK"},
         {MessageType::MOUSE_INPUT,       "MOUSE_INPUT"},
@@ -101,8 +105,9 @@ concept Trivial = requires(T a){
 template<Trivial MessageTypeData, typename Str_t>
 MessageTypeData convertTo(const Message<Str_t> &source) {
     if (source.content.size() != sizeof(MessageTypeData)) {
-        throw MessageTypeException(fmt::format("Message's size ({}) != ({}) sizeof(MessageTypeData)", source.content.size(),
-                                   sizeof(MessageTypeData)));
+        throw MessageTypeException(
+                fmt::format("Message's size ({}) != ({}) sizeof(MessageTypeData)", source.content.size(),
+                            sizeof(MessageTypeData)));
     }
     return *std::bit_cast<MessageTypeData *>(source.content.data());
 }

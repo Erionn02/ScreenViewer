@@ -100,7 +100,7 @@ ScreenViewerClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std:
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
-                auto key_sym = SDLKeySymToRfbKeySym(event.key.keysym.sym);
+                auto key_sym = SDLKeySymToX11(event.key.keysym.sym);
                 bool is_key_down = event.type == SDL_KEYDOWN;
                 socket.send(MessageType::KEYBOARD_INPUT, KeyboardEventData{.down = is_key_down, .key = key_sym});
                 break;

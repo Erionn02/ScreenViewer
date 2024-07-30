@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     ClientSocket socket{"localhost", 44321, false};
     socket.login("some_user@gmail.com", "superStrongPassword");
     spdlog::info("Finding streamer with id: {}", id);
-    bool is_found = socket.findStreamer(id);
+    bool is_found = socket.findOtherClient(id);
     spdlog::info("Is streamer found: {}", is_found);
 
     if (is_found) {

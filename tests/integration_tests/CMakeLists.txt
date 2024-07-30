@@ -7,6 +7,8 @@ package_add_test(integration-tests
         SocketTests.cpp
         UsersManagerTests.cpp
         SSLBridgeTest.cpp
+        AuthenticatedSessionTests.cpp
+        ProxySessionTests.cpp
         DEPENDS screen-viewer-lib
         )
 

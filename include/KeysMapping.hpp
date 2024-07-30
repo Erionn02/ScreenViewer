@@ -1,7 +1,4 @@
 #pragma once
 #include <SDL2/SDL_keyboard.h>
-#include <rfb/rfbproto.h>
 
-rfbKeySym SDLKeySymToRfbKeySym(SDL_Keycode sym);
-
-
+unsigned int SDLKeySymToX11(SDL_Keycode sym);

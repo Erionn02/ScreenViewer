@@ -4,6 +4,7 @@
 
 #include <thread>
 #include <fstream>
+#include <chrono>
 
 class ClientSocketException: public ScreenViewerBaseException {
 public:
@@ -18,9 +19,9 @@ public:
     ~ClientSocket();
 
     void login(const std::string &email, const std::string &password);
-    bool findStreamer(const std::string& id);
+    bool findOtherClient(const std::string& id);
     std::string requestStreamerID();
-    void waitForStartStreamMessage();
+    bool waitForStartStreamMessage(std::chrono::seconds timeout = std::chrono::seconds(std::numeric_limits<std::int64_t>::max()));
 private:
     ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context);
 

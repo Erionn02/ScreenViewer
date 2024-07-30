@@ -5,7 +5,7 @@ add_lib(screen-viewer-lib
         ${CMAKE_CURRENT_SOURCE_DIR}/SocketBase.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/MessageHeader.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ClientSocket.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/AuthenticatedServerSideClientSession.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/AuthenticatedSession.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ScreenViewerClient.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/streamer/ScreenViewerStreamer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/streamer/X11IOController.cpp
