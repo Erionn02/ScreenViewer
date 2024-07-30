@@ -30,6 +30,7 @@ ClientSocket::ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, 
 
 ClientSocket::~ClientSocket() {
     if (io_context) {
+        context_thread.request_stop();
         io_context->stop();
         if (context_thread.joinable()) {
             context_thread.join();
@@ -63,8 +64,12 @@ void ClientSocket::connect(const std::string &host, unsigned short port) {
 }
 
 void ClientSocket::start() {
-    context_thread = std::jthread{[io_context_ptr = io_context.get()] {
-        io_context_ptr->run();
+    context_thread = std::jthread{[io_context_ptr = io_context.get()](const std::stop_token& stop_token) {
+        while(!stop_token.stop_requested()) {
+            io_context_ptr->run();
+            io_context_ptr->restart();
+        }
+        spdlog::info("End");
     }};
 }
 

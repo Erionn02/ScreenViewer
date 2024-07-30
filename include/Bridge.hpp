@@ -15,29 +15,20 @@
 template<typename Stream_t>
 class Bridge : public std::enable_shared_from_this<Bridge<Stream_t>> {
 public:
-    Bridge(Stream_t vnc_server_socket, Stream_t vnc_client_socket)
-            : vnc_server_socket(std::move(vnc_server_socket)),
-              vnc_client_socket(std::move(vnc_client_socket)) {}
-
-    ~Bridge() {
-        try {
-            spdlog::info("Destroying bridge [{} <-> {}]",
-                         boost::lexical_cast<std::string>(vnc_server_socket.next_layer().remote_endpoint()),
-                         boost::lexical_cast<std::string>(vnc_client_socket.next_layer().remote_endpoint()));
-        } catch (const std::exception& e) {
-            spdlog::info("Destroying bridge, [{}]", e.what());
-        }
-    }
+    Bridge(Stream_t peer_one, Stream_t peer_two)
+            : peer_one(std::move(peer_one)), peer_one_address(boost::lexical_cast<std::string>(this->peer_one.lowest_layer().remote_endpoint())),
+              peer_two(std::move(peer_two)), peer_two_address(boost::lexical_cast<std::string>(this->peer_two.lowest_layer().remote_endpoint())) {}
 
     void start() {
-        boost::asio::async_read(vnc_client_socket,
+        spdlog::info("Opening bridge [{} <-> {}]", peer_one_address, peer_two_address);
+        boost::asio::async_read(peer_two,
                                 boost::asio::buffer(client_buffer.data(), MAX_DATA_LENGTH),
                                 boost::asio::transfer_at_least(1),
                                 boost::bind(&Bridge::handle_upstream_read,
                                             std::enable_shared_from_this<Bridge<Stream_t>>::shared_from_this(),
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
-        boost::asio::async_read(vnc_server_socket,
+        boost::asio::async_read(peer_one,
                                 boost::asio::buffer(server_buffer.data(), MAX_DATA_LENGTH),
                                 boost::asio::transfer_at_least(1),
                                 boost::bind(&Bridge::handle_downstream_read,
@@ -51,7 +42,7 @@ private:
                               const size_t &bytes_transferred) {
         if (!error) {
             boost::system::error_code ec;
-            boost::asio::write(vnc_server_socket,
+            boost::asio::write(peer_one,
                                boost::asio::buffer(client_buffer.data(), bytes_transferred),
                                boost::asio::transfer_all(), ec);
             handle_downstream_write(ec);
@@ -62,7 +53,7 @@ private:
 
     void handle_downstream_write(const boost::system::error_code &error) {
         if (!error) {
-            boost::asio::async_read(vnc_client_socket,
+            boost::asio::async_read(peer_two,
                                     boost::asio::buffer(client_buffer.data(), MAX_DATA_LENGTH),
                                     boost::asio::transfer_at_least(1),
                                     boost::bind(&Bridge::handle_upstream_read,
@@ -79,7 +70,7 @@ private:
                                 const size_t &bytes_transferred) {
         if (!error) {
             boost::system::error_code ec;
-            boost::asio::write(vnc_client_socket,
+            boost::asio::write(peer_two,
                                boost::asio::buffer(server_buffer.data(), bytes_transferred),
                                boost::asio::transfer_all(),
                                ec
@@ -92,7 +83,7 @@ private:
 
     void handle_upstream_write(const boost::system::error_code &error) {
         if (!error) {
-            boost::asio::async_read(vnc_server_socket,
+            boost::asio::async_read(peer_one,
                                     boost::asio::buffer(server_buffer.data(), MAX_DATA_LENGTH),
                                     boost::asio::transfer_at_least(1),
                                     boost::bind(&Bridge::handle_downstream_read,
@@ -105,22 +96,24 @@ private:
     }
 
     void close() {
-        spdlog::info("Bridge closes.");
         std::unique_lock lock{close_mutex};
-
-        if (vnc_server_socket.lowest_layer().is_open()) {
-            vnc_server_socket.lowest_layer().close();
+        if (peer_one.lowest_layer().is_open()) {
+            spdlog::info("Closing bridge [{} <-> {}]", peer_one_address, peer_two_address);
+            peer_one.lowest_layer().close();
         }
 
-        if (vnc_client_socket.lowest_layer().is_open()) {
-            vnc_client_socket.lowest_layer().close();
+        if (peer_two.lowest_layer().is_open()) {
+            spdlog::info("Closing bridge [{} <-> {}]", peer_one_address, peer_two_address);
+            peer_two.lowest_layer().close();
         }
     }
 
-    Stream_t vnc_server_socket;
-    Stream_t vnc_client_socket;
+    Stream_t peer_one;
+    std::string peer_one_address;
+    Stream_t peer_two;
+    std::string peer_two_address;
 
-    static constexpr int MAX_DATA_LENGTH = 8192;
+    static constexpr int MAX_DATA_LENGTH = 1'000'000;
     std::array<unsigned char, MAX_DATA_LENGTH> server_buffer{};
     std::array<unsigned char, MAX_DATA_LENGTH> client_buffer{};
 

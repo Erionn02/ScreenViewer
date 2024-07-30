@@ -175,8 +175,9 @@ std::future<boost::system::error_code> SocketBase::asyncSendMessage(OwnedMessage
 
     std::promise<boost::system::error_code> ec{};
     auto future = ec.get_future();
-    async_write(socket_, asio::buffer(msg),
-                [this, self = shared_from_this(), promise = std::move(ec), msg = std::move(msg)](error_code ec, size_t /*length*/) mutable {
+    auto buffer = asio::buffer(msg.data(), msg.size());
+    async_write(socket_, buffer,
+                [self = shared_from_this(), promise = std::move(ec), msg = std::move(msg)](error_code ec, size_t) mutable {
                     promise.set_value(ec);
                 });
 

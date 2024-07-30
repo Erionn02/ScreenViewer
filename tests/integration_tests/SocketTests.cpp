@@ -81,6 +81,31 @@ TEST_F(SocketTest, twoSocketsCanTalkToEachOther) {
     ASSERT_EQ(test_message, received_message);
 }
 
+TEST_F(SocketTest, canReturnMessageCopy) {
+    ClientSocket client_socket = createClientSocket();
+
+    OwnedMessage test_message{.type=MessageType::JUST_A_MESSAGE, .content = "Hello, world!"};
+    client_socket.send(test_message);
+
+
+    auto received_message = peer_socket->receive();
+
+    ASSERT_EQ(test_message, received_message);
+}
+
+TEST_F(SocketTest, canSendMessageAsynchronously) {
+    // has to be shared ptr for async calls
+    std::shared_ptr<ClientSocket> client_socket = std::make_shared<ClientSocket>("localhost", TEST_PORT, false);
+    waitForPeerSocket();
+    OwnedMessage test_message{.type=MessageType::JUST_A_MESSAGE, .content = "Hello, world!"};
+    std::future<boost::system::error_code> ec = client_socket->asyncSendMessage(test_message);
+
+    auto received_message = peer_socket->receive();
+
+    ASSERT_EQ(test_message, received_message);
+    ASSERT_FALSE(ec.get());
+}
+
 TEST_F(SocketTest, canSendTrivialStructs) {
     ClientSocket client_socket{"localhost", TEST_PORT, false};
     waitForPeerSocket();
@@ -103,18 +128,6 @@ TEST_F(SocketTest, canSendTrivialStructs) {
     received_message = peer_socket->receiveToBuffer();
     ASSERT_EQ(MessageType::KEYBOARD_INPUT, received_message.type);
     ASSERT_EQ(key_event, convertTo<KeyboardEventData>(received_message));
-}
-
-TEST_F(SocketTest, canReturnMessageCopy) {
-    ClientSocket client_socket = createClientSocket();
-
-    OwnedMessage test_message{.type=MessageType::JUST_A_MESSAGE, .content = "Hello, world!"};
-    client_socket.send(test_message);
-
-
-    auto received_message = peer_socket->receive();
-
-    ASSERT_EQ(test_message, received_message);
 }
 
 TEST_F(SocketTest, returnsBufferPtr) {
