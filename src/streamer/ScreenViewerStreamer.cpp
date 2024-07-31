@@ -16,7 +16,7 @@ void ScreenViewerStreamer::run() {
     spdlog::info("VNC server started");
     scheduleAsyncReadMessage();
     while (true) {
-        auto screenshot = io_controller->captureScreenshot();
+        cv::Mat screenshot = io_controller->captureScreenshot();
         cv::imencode(".png", screenshot, frame_buffer);
         auto ec = socket->asyncSendMessage(OwnedMessage{.type = MessageType::SCREEN_UPDATE,
                 .content = {std::bit_cast<char *>(frame_buffer.data()), frame_buffer.size()}});
