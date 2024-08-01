@@ -97,10 +97,10 @@ TEST_F(SocketTest, canSendMessageAsynchronously) {
     // has to be shared ptr for async calls
     std::shared_ptr<ClientSocket> client_socket = std::make_shared<ClientSocket>("localhost", TEST_PORT, false);
     waitForPeerSocket();
-    OwnedMessage test_message{.type=MessageType::JUST_A_MESSAGE, .content = "Hello, world!"};
+    BorrowedMessage test_message{.type=MessageType::ID, .content = "Hello, world!"};
     std::future<boost::system::error_code> ec = client_socket->asyncSendMessage(test_message);
 
-    auto received_message = peer_socket->receive();
+    auto received_message = peer_socket->receiveToBuffer();
 
     ASSERT_EQ(test_message, received_message);
     ASSERT_FALSE(ec.get());

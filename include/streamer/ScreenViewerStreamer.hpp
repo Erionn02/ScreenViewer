@@ -3,6 +3,7 @@
 #include "ScreenViewerBaseException.hpp"
 #include "ClientSocket.hpp"
 #include "IOController.hpp"
+#include "VideoEncoder.hpp"
 
 #include <tbb/concurrent_queue.h>
 #include <opencv2/opencv.hpp>
@@ -27,10 +28,13 @@ private:
     void scheduleAsyncReadMessage();
     void handleInput(const OwnedMessage &message);
     void handleIOEvents();
+    VideoEncoder createVideoEncoder();
+
 
 
     std::shared_ptr<ClientSocket> socket;
     std::unique_ptr<IOController> io_controller;
+    VideoEncoder encoder;
 
     std::vector<uchar> frame_buffer{};
     tbb::concurrent_queue<OwnedMessage> messages{};

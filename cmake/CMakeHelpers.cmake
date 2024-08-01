@@ -32,26 +32,26 @@ endfunction()
 function(set_link_options TARGET_NAME)
     target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(${TARGET_NAME} PRIVATE ${CONAN_LIBS} bcrypt)
-#    target_compile_options(${TARGET_NAME} PRIVATE
-#            -Wno-unused-variable
-#            -Wno-maybe-uninitialized
-#            -Werror
-#            -Wall
-#            -Wextra
-#            -Wnon-virtual-dtor
-#            -Wcast-align
-#            -Wunused
-#            -Wpedantic
-#            -Wconversion
-#            -Wsign-conversion
-#            -Wmisleading-indentation
-#            -Wduplicated-cond
-#            -Wduplicated-branches
-#            -Wlogical-op
-#            -Wnull-dereference
-#            -Wuseless-cast
-#            -Wdouble-promotion
-#            )
+    target_compile_options(${TARGET_NAME} PRIVATE
+            -Wno-unused-variable
+            -Wno-maybe-uninitialized
+            -Werror
+            -Wall
+            -Wextra
+            -Wnon-virtual-dtor
+            -Wcast-align
+            -Wunused
+            -Wpedantic
+            -Wconversion
+            -Wsign-conversion
+            -Wmisleading-indentation
+            -Wduplicated-cond
+            -Wduplicated-branches
+            -Wlogical-op
+            -Wnull-dereference
+            -Wuseless-cast
+            -Wdouble-promotion
+            )
     target_link_options(${TARGET_NAME} PRIVATE -rdynamic)
 endfunction()
 

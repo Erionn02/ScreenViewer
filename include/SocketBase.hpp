@@ -27,7 +27,7 @@ public:
 
     using MessageHandler = std::function<void(BorrowedMessage)>;
     void asyncReadMessage(MessageHandler message_handler, std::size_t max_message_size = BUFFER_SIZE);
-    std::future<boost::system::error_code> asyncSendMessage(OwnedMessage message);
+    std::future<boost::system::error_code> asyncSendMessage(BorrowedMessage &message);
     void disconnect(std::optional<std::string> disconnect_msg);
 
     void send(const OwnedMessage &message);

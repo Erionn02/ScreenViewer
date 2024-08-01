@@ -83,7 +83,7 @@ bool ClientSocket::verify_certificate(bool preverified, boost::asio::ssl::verify
 bool ClientSocket::waitForStartStreamMessage(std::chrono::seconds timeout) {
     spdlog::info("Waiting for client connection...");
     auto start = std::chrono::high_resolution_clock::now();
-    while((std::chrono::high_resolution_clock::now() - start) < timeout) {
+    while(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start) < timeout) {
         auto message = receiveToBuffer();
         if(message.type == MessageType::START_STREAM) {
             spdlog::info("Got connection, can start streaming now");

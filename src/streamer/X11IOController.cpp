@@ -1,8 +1,6 @@
 #include "streamer/X11IOController.hpp"
 #include "MouseConfig.hpp"
 
-
-#include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/XTest.h>
@@ -80,13 +78,7 @@ void X11IOController::handleMouseEvent(MouseEventData event_data) {
 }
 
 cv::Mat X11IOController::captureScreenshot() {
-    struct DestroyXImage {
-        void operator()(XImage *image) {
-            XDestroyImage(image);
-        }
-    };
-    std::unique_ptr<XImage, DestroyXImage> image{
-            XGetImage(display.get(), RootWindow(display.get(), DefaultScreen(display.get())),
+    image = {XGetImage(display.get(), RootWindow(display.get(), DefaultScreen(display.get())),
                       screens->x_org, screens->y_org, static_cast<unsigned int>(screens->width),
                       static_cast<unsigned int>(screens->height), AllPlanes, ZPixmap), DestroyXImage{}};
     if (!image) {
@@ -94,12 +86,36 @@ cv::Mat X11IOController::captureScreenshot() {
     }
 
     cv::Mat img = cv::Mat(screens->height, screens->width, CV_8UC4, image->data);
+    captureCursor(img);
+    return img;
+}
+
+void X11IOController::captureCursor(cv::Mat &screenshot) {
     std::unique_ptr<XFixesCursorImage, decltype(&XFree)> cursor_image{XFixesGetCursorImage(display.get()), XFree};
-    if (cursor_image) {
-        cv::Mat cursor_mat{cursor_image->height, cursor_image->width, CV_8UC4, cursor_image->pixels};
-        cv::Point offset{cursor_image->x - cursor_image->xhot, cursor_image->y - cursor_image->yhot};
-        drawCursor(img, cursor_mat, offset);
+    if (!cursor_image) {
+        return;
     }
 
-    return img;
+    for (int y = 0; y < cursor_image->height; y++) {
+        for (int x = 0; x < cursor_image->width; x++) {
+            int dstX = cursor_image->x + x - cursor_image->xhot;
+            int dstY = cursor_image->y + y - cursor_image->yhot;
+
+            if (dstX >= 0 && dstX < screenshot.cols && dstY >= 0 && dstY < screenshot.rows) {
+                unsigned long pixel = cursor_image->pixels[y * cursor_image->width + x];
+                unsigned char alpha = (pixel >> 24) & 0xFF;
+                unsigned char red = (pixel >> 16) & 0xFF;
+                unsigned char green = (pixel >> 8) & 0xFF;
+                unsigned char blue = pixel & 0xFF;
+
+                if (alpha > 0) {
+                    cv::Vec4b &bg_pixel = screenshot.at<cv::Vec4b>(dstY, dstX);
+                    bg_pixel[0] = static_cast<unsigned char>((blue * alpha + bg_pixel[0] * (255 - alpha)) / 255);
+                    bg_pixel[1] = static_cast<unsigned char>((green * alpha + bg_pixel[1] * (255 - alpha)) / 255);
+                    bg_pixel[2] = static_cast<unsigned char>((red * alpha + bg_pixel[2] * (255 - alpha)) / 255);
+                    bg_pixel[3] = static_cast<unsigned char>(alpha + bg_pixel[3] * (255 - alpha) / 255);
+                }
+            }
+        }
+    }
 }

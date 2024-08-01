@@ -87,10 +87,12 @@ void SocketBase::asyncReadHeader(MessageHandler message_handler, std::size_t max
                             [this, self = shared_from_this(), max_message_size, message_handler = std::move(
                                     message_handler)](error_code ec, std::size_t transferred_bytes) mutable {
                                 if (!ec) {
-                                    try  {
-                                        MessageHeader header = MessageHeader::deserialize(data_buffer.get(), transferred_bytes, max_message_size);
+                                    try {
+                                        MessageHeader header = MessageHeader::deserialize(data_buffer.get(),
+                                                                                          transferred_bytes,
+                                                                                          max_message_size);
                                         asyncReadMessageImpl(std::move(self), std::move(message_handler), header);
-                                    } catch (const MessageHeaderException& e) {
+                                    } catch (const MessageHeaderException &e) {
                                         spdlog::warn(e.what());
                                         safeDisconnect(e.what());
                                         return;
@@ -109,12 +111,14 @@ SocketBase::asyncReadMessageImpl(std::shared_ptr<SocketBase> self, MessageHandle
                             asio::transfer_exactly(header.message_size),
                             [self = std::move(self), message_handler = std::move(
                                     message_handler), this, header](error_code ec,
-                                                            std::size_t message_size) {
+                                                                    std::size_t message_size) {
                                 if (!ec) {
                                     try {
-                                        message_handler({header.type, {data_buffer.get(),message_size}});
-                                    } catch(const std::exception& e) {
-                                        spdlog::error("Encountered an error during handling message, aborting. Details: {}", e.what());
+                                        message_handler({header.type, {data_buffer.get(), message_size}});
+                                    } catch (const std::exception &e) {
+                                        spdlog::error(
+                                                "Encountered an error during handling message, aborting. Details: {}",
+                                                e.what());
                                         safeDisconnect(e.what());
                                     }
                                 } else {
@@ -166,20 +170,23 @@ boost::asio::ssl::stream<tcp::socket> &SocketBase::getSocket() {
     return socket_;
 }
 
-std::future<boost::system::error_code> SocketBase::asyncSendMessage(OwnedMessage message) {
+// User has to ensure that message's content lives until future.get() finishes
+std::future<boost::system::error_code> SocketBase::asyncSendMessage(BorrowedMessage &message) {
     MessageHeader header{.message_size = message.content.size(),
             .type = message.type};
-
-    std::string msg = std::string{std::bit_cast<char*>(&header), sizeof(header)} + std::move(message.content);
-
+    std::vector<char> serialized_header{std::bit_cast<char *>(&header), std::bit_cast<char *>(&header) + sizeof(header)};
+    std::vector<boost::asio::const_buffer> message_with_header{};
+    message_with_header.emplace_back(boost::asio::buffer(serialized_header.data(), serialized_header.size()));
+    message_with_header.emplace_back(boost::asio::buffer(message.content));
 
     std::promise<boost::system::error_code> ec{};
     auto future = ec.get_future();
-    auto buffer = asio::buffer(msg.data(), msg.size());
-    async_write(socket_, buffer,
-                [self = shared_from_this(), promise = std::move(ec), msg = std::move(msg)](error_code ec, size_t) mutable {
+    async_write(socket_, message_with_header,
+                [self = shared_from_this(), promise = std::move(ec), serialized_header = std::move(
+                        serialized_header)](error_code ec, size_t) mutable {
                     promise.set_value(ec);
                 });
 
     return future;
 }
+

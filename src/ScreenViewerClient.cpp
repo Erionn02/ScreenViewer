@@ -19,17 +19,18 @@ ScreenViewerClient::~ScreenViewerClient() {
 }
 
 void ScreenViewerClient::run() {
-    spdlog::info("Started ");
+    spdlog::info("ScreenViewerClient started.");
     while (true) {
         auto msg = socket.receiveToBuffer();
         if (msg.type==MessageType::SCREEN_UPDATE) {
             cv::Mat resized_img = getNewFrame(msg);
-
-            SDL_RenderSetLogicalSize(renderer.get(), window_width, window_height);
-            SDL_UpdateTexture(texture.get(), NULL, resized_img.data, static_cast<int>(resized_img.step1()));
-            SDL_RenderClear(renderer.get());
-            SDL_RenderCopy(renderer.get(), texture.get(), NULL, NULL);
-            SDL_RenderPresent(renderer.get());
+            if(!resized_img.empty()) {
+                SDL_RenderSetLogicalSize(renderer.get(), window_width, window_height);
+                SDL_UpdateTexture(texture.get(), NULL, resized_img.data, static_cast<int>(resized_img.step1()));
+                SDL_RenderClear(renderer.get());
+                SDL_RenderCopy(renderer.get(), texture.get(), NULL, NULL);
+                SDL_RenderPresent(renderer.get());
+            }
         } else {
             spdlog::info("Unexpected message type: {}", MESSAGE_TYPE_TO_STR.at(msg.type));
         }
@@ -40,19 +41,21 @@ void ScreenViewerClient::run() {
 }
 
 cv::Mat ScreenViewerClient::getNewFrame(BorrowedMessage msg) {
-    auto now = std::chrono::high_resolution_clock::now();
-    cv::Mat buffer(cv::Size{1, (int)msg.content.size()}, CV_8UC1, (void*)msg.content.data());
-    auto decoded_image = cv::imdecode(buffer, cv::IMREAD_UNCHANGED);
-    auto then = std::chrono::high_resolution_clock ::now();
-    std::cout<<"Decode duration: "<< std::chrono::duration_cast<std::chrono::milliseconds>(then-now) << std::endl;
+    AVPacket packet{};
+    packet.data = std::bit_cast<uint8_t *>(msg.content.data());
+    packet.size = static_cast<int>(msg.content.size());
 
-    if (decoded_image.rows != frame_height || decoded_image.cols != frame_width) {
-        frame_height = decoded_image.rows;
-        frame_width = decoded_image.cols;
-        texture = createTexture(frame_width, frame_height);
-        cv::Mat resized_img{};
-        cv::resize(decoded_image, resized_img, cv::Size(frame_width, frame_height));
-        return resized_img;
+    auto decoded_image = decoder.decode(&packet);
+
+    if(!decoded_image.empty()) {
+        if (decoded_image.rows != frame_height || decoded_image.cols != frame_width) {
+            frame_height = decoded_image.rows;
+            frame_width = decoded_image.cols;
+            texture = createTexture(frame_width, frame_height);
+            cv::Mat resized_img{};
+            cv::resize(decoded_image, resized_img, cv::Size(frame_width, frame_height));
+            return resized_img;
+        }
     }
     return decoded_image;
 }
@@ -141,7 +144,7 @@ std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> ScreenViewerClient
 
 std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> ScreenViewerClient::createTexture(int width, int height) {
     std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture_local {SDL_CreateTexture(renderer.get(),
-                                SDL_PIXELFORMAT_ARGB8888,
+                                SDL_PIXELFORMAT_BGR24,
                                 SDL_TEXTUREACCESS_STREAMING,
                                                                                                  width, height), SDL_DestroyTexture};
     if (!texture_local) {
