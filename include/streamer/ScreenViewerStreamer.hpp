@@ -25,18 +25,17 @@ public:
 
     void run();
 private:
+    void runLoop();
     void scheduleAsyncReadMessage();
     void handleInput(const OwnedMessage &message);
     void handleIOEvents();
+    void handlePacket(std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet);
     VideoEncoder createVideoEncoder();
-
 
 
     std::shared_ptr<ClientSocket> socket;
     std::unique_ptr<IOController> io_controller;
     VideoEncoder encoder;
-
-    std::vector<uchar> frame_buffer{};
     tbb::concurrent_queue<OwnedMessage> messages{};
 };
 

@@ -16,7 +16,7 @@ struct SocketTest : public Test {
                 setPeerSocket(std::move(socket));
             })};
     ScreenViewerSessionsServer<SocketBaseWrapper, DummyTestSessionManager> test_server{TEST_PORT,
-                                                                                       CERTS_DIR,
+                                                                                       TEST_DIR,
                                                                                        test_session_manager};
     SocketBase::MessageHandler async_message_handler;
     std::jthread test_server_thread;

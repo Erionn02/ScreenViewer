@@ -6,7 +6,6 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
-#include <iostream>
 #include <chrono>
 
 using namespace std::chrono_literals;

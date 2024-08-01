@@ -14,26 +14,36 @@ ScreenViewerStreamer::ScreenViewerStreamer(std::shared_ptr<ClientSocket> socket,
                                                                                           encoder(createVideoEncoder()) {}
 
 void ScreenViewerStreamer::run() {
-    spdlog::info("VNC server started");
+    spdlog::info("ScreenViewerStreamer started");
     scheduleAsyncReadMessage();
 
+    try {
+        runLoop();
+    } catch(const boost::wrapexcept<boost::system::system_error>& e) {
+        spdlog::warn("Connection lost, stopped streaming");
+    }
+}
+
+void ScreenViewerStreamer::runLoop() {
     while (true) {
         cv::Mat screenshot = io_controller->captureScreenshot();
         cv::cvtColor(screenshot, screenshot, cv::COLOR_BGRA2BGR);
         auto packet = encoder.encode(screenshot);
-        std::future<boost::system::error_code> ec;
-        BorrowedMessage msg{};
-        if(packet) {
-            spdlog::info("Packet size: {}, flags: {}", packet->size, packet->flags);
-            msg.type = MessageType::SCREEN_UPDATE;
-            msg.content = {std::bit_cast<char*>(packet->data), static_cast<std::size_t>(packet->size)};
-            ec = socket->asyncSendMessage(msg);
-        }
-        handleIOEvents();
-        if(ec.valid()) {
-            ec.get();
+        if (packet) {
+            handlePacket(std::move(packet));
+        } else {
+            handleIOEvents();
         }
     }
+}
+
+void ScreenViewerStreamer::handlePacket(std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet) {
+    spdlog::info("Packet size: {}, flags: {}", packet->size, packet->flags);
+    BorrowedMessage msg{.type = MessageType::SCREEN_UPDATE,
+                        .content{std::bit_cast<char*>(packet->data), static_cast<std::size_t>(packet->size)}};
+    auto ec = socket->asyncSendMessage(msg);
+    handleIOEvents();
+    ec.get();
 }
 
 void ScreenViewerStreamer::scheduleAsyncReadMessage() {

@@ -9,8 +9,9 @@ package_add_test(integration-tests
         SSLBridgeTest.cpp
         AuthenticatedSessionTests.cpp
         ProxySessionTests.cpp
+        ScreenViewerStreamerTests.cpp
         DEPENDS screen-viewer-lib
         )
 
-target_compile_definitions(integration-tests PRIVATE CERTS_DIR="${CMAKE_SOURCE_DIR}/tests/test_certs")
+target_compile_definitions(integration-tests PRIVATE TEST_DIR="${CMAKE_SOURCE_DIR}/tests/test_assets")
 target_include_directories(integration-tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)

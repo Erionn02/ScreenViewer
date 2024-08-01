@@ -102,3 +102,14 @@ std::string ClientSocket::requestStreamerID() {
     }
     throw ScreenViewerBaseException(fmt::format("Could not register stream. Response type: {}", MESSAGE_TYPE_TO_STR.at(response.type)));
 }
+
+void ClientSocket::disconnect() {
+    if(context_thread.joinable() && context_thread.get_stop_source().stop_possible()) {
+        context_thread.get_stop_source().request_stop();
+    }
+    safeDisconnect(std::nullopt);
+    if(context_thread.joinable()) {
+        io_context->stop();
+        context_thread.join();
+    }
+}

@@ -24,7 +24,7 @@ struct AuthenticatedSessionTests : public Test {
                                                  pg_password, database_address, database_test_port)};
     std::shared_ptr<UsersManager> users_manager{std::make_shared<UsersManager>(database_address, pg_user, pg_password, database_name, database_test_port)};
 
-    SessionsServer server{SERVER_TEST_PORT, CERTS_DIR, users_manager};
+    SessionsServer server{SERVER_TEST_PORT, TEST_DIR, users_manager};
 
     std::jthread server_thread;
 

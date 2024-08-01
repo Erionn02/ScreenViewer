@@ -27,7 +27,7 @@ struct SSLBridgeTest : public Test {
                 ++i;
             })};
     ScreenViewerSessionsServer<SocketBaseWrapper, DummyTestSessionManager> test_server{TEST_PORT,
-                                                                                       CERTS_DIR,
+                                                                                       TEST_DIR,
                                                                                        test_session_manager};
     std::jthread test_server_thread;
     std::shared_ptr<SocketBase> peer_socket{};

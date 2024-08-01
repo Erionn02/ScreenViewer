@@ -22,6 +22,7 @@ public:
     bool findOtherClient(const std::string& id);
     std::string requestStreamerID();
     bool waitForStartStreamMessage(std::chrono::seconds timeout = std::chrono::seconds(std::numeric_limits<std::int64_t>::max()));
+    void disconnect();
 private:
     ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context);
 
