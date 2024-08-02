@@ -36,6 +36,7 @@ private:
     std::unique_ptr<IOController> io_controller;
     VideoEncoder encoder;
     tbb::concurrent_queue<OwnedMessage> messages{};
+    std::mutex io_controller_mutex{};
 };
 
 

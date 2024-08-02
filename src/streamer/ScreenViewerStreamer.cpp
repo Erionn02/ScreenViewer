@@ -32,7 +32,11 @@ void ScreenViewerStreamer::scheduleAsyncPollIOEvents() {
 }
 
 void ScreenViewerStreamer::scheduleAsyncSendScreenshots() {
-    cv::Mat screenshot = io_controller->captureScreenshot();
+    cv::Mat screenshot;
+    {
+        std::lock_guard lock{io_controller_mutex};
+        screenshot = io_controller->captureScreenshot();
+    }
     cv::cvtColor(screenshot, screenshot, cv::COLOR_BGRA2BGR);
     auto packet = encoder.encode(screenshot);
     if(packet) {
@@ -47,6 +51,7 @@ void ScreenViewerStreamer::scheduleAsyncSendScreenshots() {
 
 void ScreenViewerStreamer::handleIOEvents() {
     OwnedMessage message{};
+    std::lock_guard lock{io_controller_mutex};
     while (messages.try_pop(message)) {
         handleInput(message);
     }
