@@ -29,6 +29,7 @@ private:
     std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> createRenderer();
     std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> createTexture(int width, int height);
     cv::Mat getNewFrame(BorrowedMessage msg);
+    void runLoop();
 
 
     int window_width{800};

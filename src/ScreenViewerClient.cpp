@@ -19,6 +19,14 @@ ScreenViewerClient::~ScreenViewerClient() {
 
 void ScreenViewerClient::run() {
     spdlog::info("ScreenViewerClient started.");
+    try {
+        runLoop();
+    } catch(const boost::wrapexcept<boost::system::system_error>& e) {
+        spdlog::warn("Broken connection, ending ScreenViewerClient");
+    }
+}
+
+void ScreenViewerClient::runLoop() {
     while (true) {
         auto msg = socket.receiveToBuffer();
         if (msg.type==MessageType::SCREEN_UPDATE) {
@@ -122,7 +130,7 @@ ScreenViewerClient::handleIOEvents(std::chrono::milliseconds max_poll_time, std:
 }
 
 std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> ScreenViewerClient::createWindow() {
-    std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window_local{SDL_CreateWindow("VNC Client",
+    std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window_local{SDL_CreateWindow("ScreenViewerClient",
                                                                                             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                                                                             window_width, window_height,
                                                                                             SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow};

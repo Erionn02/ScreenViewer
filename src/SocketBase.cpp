@@ -171,23 +171,7 @@ boost::asio::ssl::stream<tcp::socket> &SocketBase::getSocket() {
     return socket_;
 }
 
-// User has to ensure that message's content lives until future.get() finishes
-std::future<boost::system::error_code> SocketBase::asyncSendMessage(BorrowedMessage &message) {
-    MessageHeader header{.message_size = message.content.size(),
-            .type = message.type};
-    std::vector<char> serialized_header{std::bit_cast<char *>(&header), std::bit_cast<char *>(&header) + sizeof(header)};
-    std::vector<boost::asio::const_buffer> message_with_header{};
-    message_with_header.emplace_back(boost::asio::buffer(serialized_header.data(), serialized_header.size()));
-    message_with_header.emplace_back(boost::asio::buffer(message.content));
-
-    std::promise<boost::system::error_code> ec{};
-    auto future = ec.get_future();
-    async_write(socket_, message_with_header,
-                [self = shared_from_this(), promise = std::move(ec), serialized_header = std::move(
-                        serialized_header)](error_code ec, size_t) mutable {
-                    promise.set_value(ec);
-                });
-
-    return future;
+bool SocketBase::isOpen() {
+    return socket_.lowest_layer().is_open();
 }
 

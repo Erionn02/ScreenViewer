@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 
 ClientSocket::ClientSocket(const std::string &host, unsigned short port, bool verify_cert) : ClientSocket(
-        std::make_unique<boost::asio::io_context>(),
+        std::make_shared<boost::asio::io_context>(),
         boost::asio::ssl::context{
                 boost::asio::ssl::context::sslv23}) {
     if (verify_cert) {
@@ -25,15 +25,18 @@ ClientSocket::ClientSocket(const std::string &host, unsigned short port, bool ve
     start();
 }
 
-ClientSocket::ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context)
+ClientSocket::ClientSocket(std::shared_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context)
         : SocketBase({*io_context, context}), io_context(std::move(io_context)), context(std::move(context)) {}
 
 ClientSocket::~ClientSocket() {
     if (io_context) {
         context_thread.request_stop();
         io_context->stop();
-        if (context_thread.joinable()) {
-            context_thread.join();
+
+        // It is possible that the last reference count is held in any of the async calls which run on the context_thread's
+        // io_service, which would result in the thread joining itself, therefore we have to check for it to prevent such event
+        if(context_thread.get_id() == std::this_thread::get_id()) {
+            context_thread.detach();
         }
     }
 }
@@ -64,10 +67,10 @@ void ClientSocket::connect(const std::string &host, unsigned short port) {
 }
 
 void ClientSocket::start() {
-    context_thread = std::jthread{[io_context_ptr = io_context.get()](const std::stop_token& stop_token) {
+    context_thread = std::jthread{[io_context_ref = io_context](const std::stop_token& stop_token) {
         while(!stop_token.stop_requested()) {
-            io_context_ptr->run();
-            io_context_ptr->restart();
+            io_context_ref->run();
+            io_context_ref->restart();
         }
     }};
 }

@@ -24,18 +24,14 @@ public:
     bool waitForStartStreamMessage(std::chrono::seconds timeout = std::chrono::seconds(std::numeric_limits<std::int64_t>::max()));
     void disconnect();
 private:
-    ClientSocket(std::unique_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context);
+    ClientSocket(std::shared_ptr<boost::asio::io_context> io_context, boost::asio::ssl::context context);
 
     void connect(const std::string &host, unsigned short port);
     bool verify_certificate(bool preverified, boost::asio::ssl::verify_context &ctx);
     void start();
 
-
-    std::unique_ptr<boost::asio::io_context> io_context;
+    // has to be shared_ptr to ensure, that the context_thread (if detached) won't outlive the io_context, while still using it
+    std::shared_ptr<boost::asio::io_context> io_context;
     boost::asio::ssl::context context;
     std::jthread context_thread;
 };
-
-// sadly io_context does not provide move constructor
-// and I want to encapsulate io_context within the class
-// therefore I use unique_ptr here to enable moving it

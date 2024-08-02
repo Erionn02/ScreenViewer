@@ -25,11 +25,10 @@ public:
 
     void run();
 private:
-    void runLoop();
-    void scheduleAsyncReadMessage();
+    void scheduleAsyncPollIOEvents();
+    void scheduleAsyncSendScreenshots();
     void handleInput(const OwnedMessage &message);
     void handleIOEvents();
-    void handlePacket(std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet);
     VideoEncoder createVideoEncoder();
 
 

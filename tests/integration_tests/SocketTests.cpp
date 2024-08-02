@@ -33,6 +33,7 @@ struct SocketTest : public Test {
 
     void TearDown() override {
         test_server.stop();
+        peer_socket.reset();
     }
 
     void setPeerSocket(std::shared_ptr<SocketBase> other_peer_socker) {
@@ -98,12 +99,27 @@ TEST_F(SocketTest, canSendMessageAsynchronously) {
     std::shared_ptr<ClientSocket> client_socket = std::make_shared<ClientSocket>("localhost", TEST_PORT, false);
     waitForPeerSocket();
     BorrowedMessage test_message{.type=MessageType::ID, .content = "Hello, world!"};
-    std::future<boost::system::error_code> ec = client_socket->asyncSendMessage(test_message);
+    client_socket->asyncSendMessage(test_message);
 
     auto received_message = peer_socket->receiveToBuffer();
 
     ASSERT_EQ(test_message, received_message);
-    ASSERT_FALSE(ec.get());
+}
+
+TEST_F(SocketTest, callsCompletionHandlerOnAsyncSendMessage) {
+    // has to be shared ptr for async calls
+    std::shared_ptr<ClientSocket> client_socket = std::make_shared<ClientSocket>("localhost", TEST_PORT, false);
+    waitForPeerSocket();
+    BorrowedMessage test_message{.type=MessageType::ID, .content = "Hello, world!"};
+
+    std::atomic_bool is_called{false};
+    client_socket->asyncSendMessage(test_message, [&]{
+        is_called.store(true);
+    });
+
+    peer_socket->receiveToBuffer();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1)); // just to make sure that callback is called
+    ASSERT_TRUE(is_called.load());
 }
 
 TEST_F(SocketTest, canSendTrivialStructs) {
