@@ -9,8 +9,6 @@
 #include <string>
 #include <memory>
 
-#define DEBUG() spdlog::info(__FUNCTION__);
-
 
 template<typename Stream_t>
 class Bridge : public std::enable_shared_from_this<Bridge<Stream_t>> {
@@ -99,11 +97,13 @@ private:
         std::unique_lock lock{close_mutex};
         if (peer_one.lowest_layer().is_open()) {
             spdlog::info("Closing bridge [{} <-> {}]", peer_one_address, peer_two_address);
+            peer_one.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both);
             peer_one.lowest_layer().close();
         }
 
         if (peer_two.lowest_layer().is_open()) {
-            spdlog::info("Closing bridge [{} <-> {}]", peer_one_address, peer_two_address);
+            spdlog::info("Closing bridge [{} <-> {}]", peer_two_address, peer_one_address);
+            peer_one.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both);
             peer_two.lowest_layer().close();
         }
     }
