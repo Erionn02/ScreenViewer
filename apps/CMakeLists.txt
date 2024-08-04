@@ -16,10 +16,6 @@ add_app(add_user
         add_user.cpp
         )
 
-add_app(wayland_tests
-        wayland_tests.cpp
-)
-
 
 
 target_compile_definitions(ScreenViewerServer PRIVATE TEST_CERTS_DIR="${CMAKE_SOURCE_DIR}/tests/test_assets")
